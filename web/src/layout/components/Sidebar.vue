@@ -15,6 +15,12 @@ const menuGroups = computed(() => {
   // 从 router.options.routes 中取带 children 的非隐藏路由
   const allRoutes = [
     { path: '/dashboard', meta: { title: '首页', icon: 'Home' }, single: true },
+    { path: '/business', meta: { title: '业务管理', icon: 'Briefcase' }, children: [
+      { path: '/business/project', meta: { title: '项目管理', icon: 'FolderKanban' } },
+      { path: '/business/contract', meta: { title: '合同管理', icon: 'FileText' } },
+      { path: '/business/quote', meta: { title: '报价管理', icon: 'FileSpreadsheet' } },
+      { path: '/business/equipment', meta: { title: '设备台账', icon: 'Server' } },
+    ]},
     { path: '/system', meta: { title: '系统管理', icon: 'Settings' }, children: [
       { path: '/system/user', meta: { title: '用户管理', icon: 'User' } },
       { path: '/system/role', meta: { title: '角色管理', icon: 'UserCog' } },

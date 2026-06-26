@@ -1,0 +1,256 @@
+<script setup lang="ts">
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
+import { contractApi, type ContractDTO } from '@/api/business'
+
+interface Contract extends ContractDTO {
+  createTime?: string
+}
+
+const loading = ref(false)
+const tableData = ref<Contract[]>([])
+const total = ref(0)
+const query = reactive({ pageNum: 1, pageSize: 10, name: '', code: '', status: '' })
+
+const dialogVisible = ref(false)
+const dialogTitle = ref('')
+const formRef = ref<FormInstance>()
+const form = reactive<ContractDTO>({
+  code: '', name: '', partyA: '', partyB: '', signDate: '', amount: 0,
+  category: 'GENERAL', paymentMethod: '', projectId: undefined, status: 'DRAFT',
+  startDate: '', endDate: '', remark: '',
+})
+const isEdit = ref(false)
+
+const categoryMap: Record<string, string> = {
+  GENERAL: '总包', SUB: '分包', PURCHASE: '采购', MAINTENANCE: '维保',
+}
+const statusMap: Record<string, string> = {
+  DRAFT: '草稿', APPROVING: '审批中', APPROVED: '已审批', ARCHIVED: '已归档',
+}
+const statusTagType: Record<string, string> = {
+  DRAFT: 'info', APPROVING: 'warning', APPROVED: 'success', ARCHIVED: 'info',
+}
+
+async function loadData() {
+  loading.value = true
+  try {
+    const res: any = await contractApi.page(query)
+    tableData.value = res.list || []
+    total.value = res.total || 0
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleSearch() {
+  query.pageNum = 1
+  loadData()
+}
+
+function handleReset() {
+  query.name = ''
+  query.code = ''
+  query.status = ''
+  handleSearch()
+}
+
+function handleAdd() {
+  isEdit.value = false
+  dialogTitle.value = '新增合同'
+  Object.assign(form, {
+    id: undefined, code: '', name: '', partyA: '', partyB: '', signDate: '', amount: 0,
+    category: 'GENERAL', paymentMethod: '', projectId: undefined, status: 'DRAFT',
+    startDate: '', endDate: '', remark: '',
+  })
+  dialogVisible.value = true
+}
+
+function handleEdit(row: Contract) {
+  isEdit.value = true
+  dialogTitle.value = '编辑合同'
+  Object.assign(form, {
+    id: row.id, code: row.code, name: row.name, partyA: row.partyA, partyB: row.partyB,
+    signDate: row.signDate, amount: row.amount, category: row.category,
+    paymentMethod: row.paymentMethod, projectId: row.projectId, status: row.status,
+    startDate: row.startDate, endDate: row.endDate, remark: row.remark,
+  })
+  dialogVisible.value = true
+}
+
+async function handleSubmit() {
+  if (!formRef.value) return
+  await formRef.value.validate(async (valid) => {
+    if (!valid) return
+    try {
+      if (isEdit.value) {
+        await contractApi.update(form)
+        ElMessage.success('更新成功')
+      } else {
+        await contractApi.create(form)
+        ElMessage.success('新增成功')
+      }
+      dialogVisible.value = false
+      loadData()
+    } catch {}
+  })
+}
+
+async function handleDelete(row: Contract) {
+  try {
+    await ElMessageBox.confirm(`确定删除合同「${row.name}」吗?`, '提示', { type: 'warning' })
+    await contractApi.delete(row.id!)
+    ElMessage.success('删除成功')
+    loadData()
+  } catch {}
+}
+
+function formatAmount(v: number) {
+  return v != null ? `¥${Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : '-'
+}
+
+const rules = {
+  code: [{ required: true, message: '请输入合同编号', trigger: 'blur' }],
+  name: [{ required: true, message: '请输入合同名称', trigger: 'blur' }],
+}
+
+onMounted(() => {
+  loadData()
+})
+</script>
+
+<template>
+  <div class="page">
+    <div class="page-header">
+      <h1>合同管理</h1>
+    </div>
+
+    <div class="card search-bar">
+      <el-form inline>
+        <el-form-item label="编号">
+          <el-input v-model="query.code" placeholder="合同编号" clearable style="width: 160px" @keyup.enter="handleSearch" />
+        </el-form-item>
+        <el-form-item label="名称">
+          <el-input v-model="query.name" placeholder="合同名称" clearable style="width: 180px" @keyup.enter="handleSearch" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="query.status" placeholder="全部" clearable style="width: 140px">
+            <el-option v-for="(label, key) in statusMap" :key="key" :label="label" :value="key" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <el-button type="primary" @click="handleAdd">+ 新增合同</el-button>
+      </div>
+      <el-table v-loading="loading" :data="tableData" row-key="id" style="width: 100%">
+        <el-table-column prop="code" label="合同编号" min-width="120" />
+        <el-table-column prop="name" label="合同名称" min-width="180" />
+        <el-table-column prop="partyA" label="甲方" min-width="140" />
+        <el-table-column prop="partyB" label="乙方" min-width="140" />
+        <el-table-column label="金额" min-width="130" align="right">
+          <template #default="{ row }">{{ formatAmount(row.amount) }}</template>
+        </el-table-column>
+        <el-table-column label="类别" width="90">
+          <template #default="{ row }">{{ categoryMap[row.category] || row.category }}</template>
+        </el-table-column>
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="statusTagType[row.status] || 'info'" size="small" effect="light">
+              {{ statusMap[row.status] || row.status }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="signDate" label="签订日期" min-width="120" />
+        <el-table-column prop="createTime" label="创建时间" min-width="160" />
+        <el-table-column label="操作" width="160" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="pagination">
+        <el-pagination
+          v-model:current-page="query.pageNum"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @current-change="loadData"
+          @size-change="loadData"
+        />
+      </div>
+    </div>
+
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+        <el-form-item label="合同编号" prop="code">
+          <el-input v-model="form.code" :disabled="isEdit" placeholder="如 C2026-001" />
+        </el-form-item>
+        <el-form-item label="合同名称" prop="name">
+          <el-input v-model="form.name" placeholder="请输入合同名称" />
+        </el-form-item>
+        <el-form-item label="甲方">
+          <el-input v-model="form.partyA" placeholder="甲方名称" />
+        </el-form-item>
+        <el-form-item label="乙方">
+          <el-input v-model="form.partyB" placeholder="乙方名称" />
+        </el-form-item>
+        <el-form-item label="合同金额">
+          <el-input-number v-model="form.amount" :min="0" :precision="2" controls-position="right" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="合同类别">
+          <el-select v-model="form.category" style="width: 100%">
+            <el-option v-for="(label, key) in categoryMap" :key="key" :label="label" :value="key" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="付款方式">
+          <el-input v-model="form.paymentMethod" placeholder="如:按进度付款" />
+        </el-form-item>
+        <el-form-item label="签订日期">
+          <el-date-picker v-model="form.signDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="生效日期">
+          <el-date-picker v-model="form.startDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="到期日期">
+          <el-date-picker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="form.status" style="width: 100%">
+            <el-option v-for="(label, key) in statusMap" :key="key" :label="label" :value="key" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="备注" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSubmit">确定</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<style scoped lang="scss">
+.page { padding: 24px; }
+.page-header { margin-bottom: 16px; h1 { font-size: 20px; font-weight: 600; color: #1F2937; } }
+.card {
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.search-bar { padding: 16px 20px 0; }
+.toolbar { margin-bottom: 16px; }
+.pagination { display: flex; justify-content: flex-end; margin-top: 16px; }
+</style>

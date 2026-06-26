@@ -56,6 +56,38 @@ export const staticRoutes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/business',
+    component: Layout,
+    redirect: '/business/project',
+    meta: { title: '业务管理', icon: 'Briefcase' },
+    children: [
+      {
+        path: 'project',
+        name: 'BusinessProject',
+        component: () => import('@/views/business/project/index.vue'),
+        meta: { title: '项目管理', icon: 'FolderKanban' },
+      },
+      {
+        path: 'contract',
+        name: 'BusinessContract',
+        component: () => import('@/views/business/contract/index.vue'),
+        meta: { title: '合同管理', icon: 'FileText' },
+      },
+      {
+        path: 'quote',
+        name: 'BusinessQuote',
+        component: () => import('@/views/business/quote/index.vue'),
+        meta: { title: '报价管理', icon: 'FileSpreadsheet' },
+      },
+      {
+        path: 'equipment',
+        name: 'BusinessEquipment',
+        component: () => import('@/views/business/equipment/index.vue'),
+        meta: { title: '设备台账', icon: 'Server' },
+      },
+    ],
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/error/404.vue'),
