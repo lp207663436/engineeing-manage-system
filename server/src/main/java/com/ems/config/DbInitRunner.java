@@ -30,6 +30,9 @@ public class DbInitRunner implements CommandLineRunner {
         createEquipmentTable();
         createProgressTable();
         createAcceptanceTable();
+        createMaintenancePointTable();
+        createMaintenanceContractTable();
+        createPointSettlementTable();
         seedBusinessMenus();
         System.out.println("[DbInitRunner] 业务模块表初始化完成");
     }
@@ -184,7 +187,77 @@ public class DbInitRunner implements CommandLineRunner {
                 "UNIQUE KEY uk_code (code)," +
                 "INDEX idx_business (business_type, business_id)," +
                 "INDEX idx_project (project_id)" +
-                ") COMMENT '项目验收表'");
+                ") COMMENT '项目验收表')");
+    }
+
+    private void createMaintenancePointTable() {
+        exec("CREATE TABLE IF NOT EXISTS maintenance_point (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '点位编号'," +
+                "project_id BIGINT NOT NULL COMMENT '关联维护型项目'," +
+                "name VARCHAR(200) NOT NULL COMMENT '点位名称'," +
+                "location VARCHAR(500) COMMENT '位置描述'," +
+                "equipment_list VARCHAR(1000) COMMENT '设备/系统清单'," +
+                "manager_id BIGINT COMMENT '负责人'," +
+                "status VARCHAR(20) NOT NULL DEFAULT 'WAITING_QUOTE' COMMENT 'WAITING_QUOTE/QUOTED/CONSTRUCTING/WAITING_ACCEPTANCE/ACCEPTED/SETTLED'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_project (project_id)" +
+                ") COMMENT '维护点位表'");
+    }
+
+    private void createMaintenanceContractTable() {
+        exec("CREATE TABLE IF NOT EXISTS maintenance_contract (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '合同编号'," +
+                "name VARCHAR(200) NOT NULL COMMENT '合同名称'," +
+                "project_id BIGINT NOT NULL COMMENT '关联维护型项目'," +
+                "party_a VARCHAR(200) COMMENT '甲方'," +
+                "party_b VARCHAR(200) COMMENT '乙方'," +
+                "sign_date DATE COMMENT '签订日期'," +
+                "effective_date DATE NOT NULL COMMENT '合同生效日(季度起算点)'," +
+                "total_amount DECIMAL(14,2) NOT NULL COMMENT '合同总额'," +
+                "period_months INT NOT NULL COMMENT '合同期月数(必须%3==0且≥6)'," +
+                "period_count INT COMMENT '合同期数(=period_months/3)'," +
+                "response_sla VARCHAR(200) COMMENT '响应时效'," +
+                "scope VARCHAR(1000) COMMENT '维保服务范围'," +
+                "status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/TERMINATED/EXPIRED'," +
+                "end_date DATE COMMENT '合同到期日(=effective_date+period_months-1天)'," +
+                "remark VARCHAR(500) COMMENT '备注'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_project (project_id)" +
+                ") COMMENT '维保主合同表'");
+    }
+
+    private void createPointSettlementTable() {
+        exec("CREATE TABLE IF NOT EXISTS point_settlement (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '结算单编号'," +
+                "project_id BIGINT COMMENT '关联项目'," +
+                "point_id BIGINT NOT NULL COMMENT '关联点位'," +
+                "quote_id BIGINT NOT NULL COMMENT '关联报价'," +
+                "acceptance_id BIGINT COMMENT '关联验收单'," +
+                "amount DECIMAL(14,2) NOT NULL COMMENT '结算金额(=报价金额)'," +
+                "status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/CONFIRMED/INVOICED/RECEIVED/CLOSED'," +
+                "invoice_no VARCHAR(100) COMMENT '发票号'," +
+                "received_amount DECIMAL(14,2) COMMENT '已回款金额'," +
+                "received_date DATE COMMENT '回款日期'," +
+                "remark VARCHAR(500) COMMENT '备注'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_point (point_id)," +
+                "INDEX idx_project (project_id)" +
+                ") COMMENT '点位结算单表'");
     }
 
     private void seedBusinessMenus() {
@@ -214,7 +287,20 @@ public class DbInitRunner implements CommandLineRunner {
                 {"2053", "205", "进度删除", "3", "business:progress:delete", "", "", "3"},
                 {"2061", "206", "验收新增", "3", "business:acceptance:create", "", "", "1"},
                 {"2062", "206", "验收编辑", "3", "business:acceptance:update", "", "", "2"},
-                {"2063", "206", "验收删除", "3", "business:acceptance:delete", "", "", "3"}
+                {"2063", "206", "验收删除", "3", "business:acceptance:delete", "", "", "3"},
+                {"207", "0", "维护型项目", "1", "", "/business/maintenance", "Briefcase", "3"},
+                {"208", "207", "点位管理", "2", "business:maintenancePoint:list", "/business/maintenance-point", "MapPin", "1"},
+                {"209", "207", "维保主合同", "2", "business:maintenanceContract:list", "/business/maintenance-contract", "FileSignature", "2"},
+                {"210", "207", "点位结算", "2", "business:pointSettlement:list", "/business/point-settlement", "Receipt", "3"},
+                {"2081", "208", "点位新增", "3", "business:maintenancePoint:create", "", "", "1"},
+                {"2082", "208", "点位编辑", "3", "business:maintenancePoint:update", "", "", "2"},
+                {"2083", "208", "点位删除", "3", "business:maintenancePoint:delete", "", "", "3"},
+                {"2091", "209", "主合同新增", "3", "business:maintenanceContract:create", "", "", "1"},
+                {"2092", "209", "主合同编辑", "3", "business:maintenanceContract:update", "", "", "2"},
+                {"2093", "209", "主合同删除", "3", "business:maintenanceContract:delete", "", "", "3"},
+                {"2101", "210", "结算单新增", "3", "business:pointSettlement:create", "", "", "1"},
+                {"2102", "210", "结算单编辑", "3", "business:pointSettlement:update", "", "", "2"},
+                {"2103", "210", "结算单删除", "3", "business:pointSettlement:delete", "", "", "3"}
         };
         for (String[] m : menus) {
             jdbc.update("INSERT IGNORE INTO sys_menu (id, parent_id, name, type, permission, path, icon, sort, status) " +
@@ -227,6 +313,6 @@ public class DbInitRunner implements CommandLineRunner {
         }
         // 给 admin(role_id=1)分配权限,幂等
         jdbc.update("INSERT IGNORE INTO sys_role_menu (role_id, menu_id) " +
-                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2063");
+                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2103");
     }
 }
