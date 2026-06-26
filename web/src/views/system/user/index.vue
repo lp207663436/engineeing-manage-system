@@ -32,7 +32,7 @@ async function loadData() {
   loading.value = true
   try {
     const res: any = await userApi.page(query)
-    tableData.value = res.records || []
+    tableData.value = res.list || []
     total.value = res.total || 0
   } finally {
     loading.value = false

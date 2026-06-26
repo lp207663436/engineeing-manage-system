@@ -23,7 +23,7 @@ async function loadData() {
   loading.value = true
   try {
     const res: any = await roleApi.page(query)
-    tableData.value = res.records || []
+    tableData.value = res.list || []
     total.value = res.total || 0
   } finally {
     loading.value = false
