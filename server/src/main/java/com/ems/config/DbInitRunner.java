@@ -182,7 +182,7 @@ public class DbInitRunner implements CommandLineRunner {
                 "accept_date DATE COMMENT '验收日期'," +
                 "actual_quantity VARCHAR(500) COMMENT '实际工程量'," +
                 "result VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/PASS/FAIL/RECTIFYING/ARBITRATION'," +
-                "rectify_count INT DEFAULT 0 COMMENT '整改次数(上限3)'," +
+                "rectify_count INT DEFAULT 0 COMMENT '整改次数上限3'," +
                 "remark VARCHAR(500) COMMENT '验收结论说明'," +
                 "create_by BIGINT," +
                 "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
@@ -191,7 +191,7 @@ public class DbInitRunner implements CommandLineRunner {
                 "UNIQUE KEY uk_code (code)," +
                 "INDEX idx_business (business_type, business_id)," +
                 "INDEX idx_project (project_id)" +
-                ") COMMENT '项目验收表')");
+                ") COMMENT '项目验收表'");
     }
 
     private void createMaintenancePointTable() {
@@ -261,7 +261,7 @@ public class DbInitRunner implements CommandLineRunner {
                 "UNIQUE KEY uk_code (code)," +
                 "INDEX idx_point (point_id)," +
                 "INDEX idx_project (project_id)" +
-                ") COMMENT '点位结算单表')");
+                ") COMMENT '点位结算单表'");
     }
 
     private void createQuarterlySettlementTable() {
@@ -288,7 +288,7 @@ public class DbInitRunner implements CommandLineRunner {
                 "INDEX idx_contract (contract_id)," +
                 "INDEX idx_project (project_id)," +
                 "INDEX idx_period (contract_id, period_no)" +
-                ") COMMENT '季度结算单表')");
+                ") COMMENT '季度结算单表'");
     }
 
     private void createMaintenanceTaskTable() {
