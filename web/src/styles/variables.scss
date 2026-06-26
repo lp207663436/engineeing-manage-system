@@ -1,0 +1,48 @@
+// SCSS 主题变量 - 对齐 UI 设计规范第二节配色
+$color-primary: #4F6BED;
+$color-primary-hover: #3D5BDB;
+$color-primary-active: #2C49C9;
+
+$text-primary: #1F2937;
+$text-regular: #4B5563;
+$text-secondary: #9CA3AF;
+
+$border-color: #E5E7EB;
+$divider-color: #F3F4F6;
+
+$bg-page: #FFFFFF;
+$bg-sidebar: #FAFAFA;
+$bg-hover: #F9FAFB;
+
+$success: #10B981;
+$warning: #F59E0B;
+$danger: #EF4444;
+$info: #3B82F6;
+
+$radius-btn: 6px;
+$radius-card: 8px;
+$radius-modal: 12px;
+$radius-tag: 4px;
+
+$shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+$shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
+$shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+$font-family: 'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif;
+
+:root {
+  --color-primary: #{$color-primary};
+  --color-primary-hover: #{$color-primary-hover};
+  --text-primary: #{$text-primary};
+  --text-regular: #{$text-regular};
+  --text-secondary: #{$text-secondary};
+  --border-color: #{$border-color};
+  --divider-color: #{$divider-color};
+  --bg-page: #{$bg-page};
+  --bg-sidebar: #{$bg-sidebar};
+  --bg-hover: #{$bg-hover};
+  --shadow-card: #{$shadow-card};
+  --shadow-hover: #{$shadow-hover};
+  --shadow-modal: #{$shadow-modal};
+  --font-family: #{$font-family};
+}
