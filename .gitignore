@@ -1,0 +1,30 @@
+# IDE / 框架
+.trae/
+.idea/
+.vscode/
+*.iml
+
+# 后端
+server/target/
+*.class
+*.jar
+*.war
+
+# 前端
+node_modules/
+dist/
+.pnpm-store/
+
+# 日志
+logs/
+*.log
+
+# 本地配置
+application-local.yml
+application-local.properties
+.env
+.env.local
+
+# 系统
+.DS_Store
+Thumbs.db
