@@ -34,6 +34,9 @@ public class DbInitRunner implements CommandLineRunner {
         createMaintenanceContractTable();
         createPointSettlementTable();
         createQuarterlySettlementTable();
+        createMaintenanceTaskTable();
+        createMaintenanceRecordTable();
+        createAttachmentTable();
         seedBusinessMenus();
         System.out.println("[DbInitRunner] 业务模块表初始化完成");
     }
@@ -285,7 +288,78 @@ public class DbInitRunner implements CommandLineRunner {
                 "INDEX idx_contract (contract_id)," +
                 "INDEX idx_project (project_id)," +
                 "INDEX idx_period (contract_id, period_no)" +
-                ") COMMENT '季度结算单表'");
+                ") COMMENT '季度结算单表')");
+    }
+
+    private void createMaintenanceTaskTable() {
+        exec("CREATE TABLE IF NOT EXISTS maintenance_task (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '工单编号'," +
+                "project_id BIGINT COMMENT '关联项目'," +
+                "point_id BIGINT COMMENT '关联点位(维护型项目)'," +
+                "equipment_id BIGINT COMMENT '关联设备'," +
+                "type VARCHAR(20) NOT NULL COMMENT '任务类型 INSPECTION巡检/REPAIR故障报修'," +
+                "title VARCHAR(200) NOT NULL COMMENT '标题'," +
+                "description VARCHAR(1000) COMMENT '故障现象/任务描述'," +
+                "reporter_id BIGINT COMMENT '报修人(故障报修)'," +
+                "handler_id BIGINT COMMENT '处理人(派单)'," +
+                "handle_method VARCHAR(1000) COMMENT '处理方法'," +
+                "parts_used VARCHAR(500) COMMENT '更换配件'," +
+                "status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING待派单/ASSIGNED已派单/PROCESSING处理中/WAITING_ACCEPTANCE待验收/COMPLETED已完成/CLOSED已关闭'," +
+                "plan_date DATE COMMENT '计划日期(巡检)'," +
+                "complete_date DATE COMMENT '完工日期'," +
+                "remark VARCHAR(500) COMMENT '备注'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_project (project_id)," +
+                "INDEX idx_equipment (equipment_id)," +
+                "INDEX idx_status (status)" +
+                ") COMMENT '维保任务/工单表'");
+    }
+
+    private void createMaintenanceRecordTable() {
+        exec("CREATE TABLE IF NOT EXISTS maintenance_record (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '记录编号'," +
+                "task_id BIGINT COMMENT '关联工单(可空,巡检可直接建记录)'," +
+                "project_id BIGINT COMMENT '关联项目'," +
+                "point_id BIGINT COMMENT '关联点位'," +
+                "equipment_id BIGINT COMMENT '关联设备'," +
+                "record_type VARCHAR(20) NOT NULL COMMENT 'INSPECTION巡检/REPAIR维修/MAINTENANCE保养'," +
+                "content VARCHAR(2000) NOT NULL COMMENT '维保内容/处理过程'," +
+                "parts_used VARCHAR(500) COMMENT '更换配件'," +
+                "recorder_id BIGINT COMMENT '记录人'," +
+                "record_date DATE NOT NULL COMMENT '记录日期'," +
+                "remark VARCHAR(500) COMMENT '备注'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_project (project_id)," +
+                "INDEX idx_equipment (equipment_id)," +
+                "INDEX idx_task (task_id)" +
+                ") COMMENT '维保记录表'");
+    }
+
+    private void createAttachmentTable() {
+        exec("CREATE TABLE IF NOT EXISTS attachment (" +
+                "id BIGINT PRIMARY KEY," +
+                "name VARCHAR(200) NOT NULL COMMENT '原始文件名'," +
+                "file_path VARCHAR(500) NOT NULL COMMENT '存储相对路径'," +
+                "file_size BIGINT COMMENT '文件大小(字节)'," +
+                "file_type VARCHAR(100) COMMENT '文件MIME类型'," +
+                "business_type VARCHAR(50) NOT NULL COMMENT '业务类型(CONTRACT/QUOTE/EQUIPMENT/ACCEPTANCE/MAINTENANCE等)'," +
+                "business_id BIGINT COMMENT '业务ID'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "INDEX idx_business (business_type, business_id)" +
+                ") COMMENT '附件表'");
     }
 
     private void seedBusinessMenus() {
@@ -332,7 +406,20 @@ public class DbInitRunner implements CommandLineRunner {
                 {"211", "207", "季度结算", "2", "business:quarterlySettlement:list", "/business/quarterly-settlement", "CalendarClock", "4"},
                 {"2111", "211", "生成结算单", "3", "business:quarterlySettlement:create", "", "", "1"},
                 {"2112", "211", "调整结算单", "3", "business:quarterlySettlement:update", "", "", "2"},
-                {"2113", "211", "删除结算单", "3", "business:quarterlySettlement:delete", "", "", "3"}
+                {"2113", "211", "删除结算单", "3", "business:quarterlySettlement:delete", "", "", "3"},
+                {"212", "0", "附件管理", "2", "business:attachment:list", "/business/attachment", "Paperclip", "4"},
+                {"2121", "212", "上传", "3", "business:attachment:upload", "", "", "1"},
+                {"2122", "212", "删除", "3", "business:attachment:delete", "", "", "2"},
+                {"213", "207", "维保任务", "2", "business:maintenanceTask:list", "/business/maintenance-task", "Wrench", "5"},
+                {"214", "207", "维保记录", "2", "business:maintenanceRecord:list", "/business/maintenance-record", "ClipboardList", "6"},
+                {"215", "0", "结算看板", "2", "business:dashboard:list", "/business/dashboard/settlement", "BarChart3", "5"},
+                {"2131", "213", "工单新增", "3", "business:maintenanceTask:create", "", "", "1"},
+                {"2132", "213", "工单编辑", "3", "business:maintenanceTask:update", "", "", "2"},
+                {"2133", "213", "工单删除", "3", "business:maintenanceTask:delete", "", "", "3"},
+                {"2141", "214", "记录新增", "3", "business:maintenanceRecord:create", "", "", "1"},
+                {"2142", "214", "记录编辑", "3", "business:maintenanceRecord:update", "", "", "2"},
+                {"2143", "214", "记录删除", "3", "business:maintenanceRecord:delete", "", "", "3"},
+                {"2151", "215", "查询", "3", "business:dashboard:list", "", "", "1"}
         };
         for (String[] m : menus) {
             jdbc.update("INSERT IGNORE INTO sys_menu (id, parent_id, name, type, permission, path, icon, sort, status) " +
@@ -345,6 +432,6 @@ public class DbInitRunner implements CommandLineRunner {
         }
         // 给 admin(role_id=1)分配权限,幂等
         jdbc.update("INSERT IGNORE INTO sys_role_menu (role_id, menu_id) " +
-                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2113");
+                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2151");
     }
 }
