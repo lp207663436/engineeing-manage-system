@@ -33,6 +33,7 @@ public class DbInitRunner implements CommandLineRunner {
         createMaintenancePointTable();
         createMaintenanceContractTable();
         createPointSettlementTable();
+        createQuarterlySettlementTable();
         seedBusinessMenus();
         System.out.println("[DbInitRunner] 业务模块表初始化完成");
     }
@@ -257,7 +258,34 @@ public class DbInitRunner implements CommandLineRunner {
                 "UNIQUE KEY uk_code (code)," +
                 "INDEX idx_point (point_id)," +
                 "INDEX idx_project (project_id)" +
-                ") COMMENT '点位结算单表'");
+                ") COMMENT '点位结算单表')");
+    }
+
+    private void createQuarterlySettlementTable() {
+        exec("CREATE TABLE IF NOT EXISTS quarterly_settlement (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '结算单编号'," +
+                "contract_id BIGINT NOT NULL COMMENT '关联维保主合同'," +
+                "project_id BIGINT COMMENT '关联项目'," +
+                "period_no INT NOT NULL COMMENT '第几期(1-based)'," +
+                "period_start_date DATE NOT NULL COMMENT '本期开始日'," +
+                "period_end_date DATE NOT NULL COMMENT '本期结束日'," +
+                "amount DECIMAL(14,2) NOT NULL COMMENT '本期维保费金额'," +
+                "amount_version INT DEFAULT 1 COMMENT '适用金额版本'," +
+                "status VARCHAR(20) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT/REVIEWED/CONFIRMED/INVOICED/RECEIVED/CLOSED'," +
+                "invoice_no VARCHAR(100) COMMENT '发票号'," +
+                "received_amount DECIMAL(14,2) COMMENT '已回款金额'," +
+                "received_date DATE COMMENT '回款日期'," +
+                "remark VARCHAR(500) COMMENT '备注'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_contract (contract_id)," +
+                "INDEX idx_project (project_id)," +
+                "INDEX idx_period (contract_id, period_no)" +
+                ") COMMENT '季度结算单表'");
     }
 
     private void seedBusinessMenus() {
@@ -300,7 +328,11 @@ public class DbInitRunner implements CommandLineRunner {
                 {"2093", "209", "主合同删除", "3", "business:maintenanceContract:delete", "", "", "3"},
                 {"2101", "210", "结算单新增", "3", "business:pointSettlement:create", "", "", "1"},
                 {"2102", "210", "结算单编辑", "3", "business:pointSettlement:update", "", "", "2"},
-                {"2103", "210", "结算单删除", "3", "business:pointSettlement:delete", "", "", "3"}
+                {"2103", "210", "结算单删除", "3", "business:pointSettlement:delete", "", "", "3"},
+                {"211", "207", "季度结算", "2", "business:quarterlySettlement:list", "/business/quarterly-settlement", "CalendarClock", "4"},
+                {"2111", "211", "生成结算单", "3", "business:quarterlySettlement:create", "", "", "1"},
+                {"2112", "211", "调整结算单", "3", "business:quarterlySettlement:update", "", "", "2"},
+                {"2113", "211", "删除结算单", "3", "business:quarterlySettlement:delete", "", "", "3"}
         };
         for (String[] m : menus) {
             jdbc.update("INSERT IGNORE INTO sys_menu (id, parent_id, name, type, permission, path, icon, sort, status) " +
@@ -313,6 +345,6 @@ public class DbInitRunner implements CommandLineRunner {
         }
         // 给 admin(role_id=1)分配权限,幂等
         jdbc.update("INSERT IGNORE INTO sys_role_menu (role_id, menu_id) " +
-                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2103");
+                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2113");
     }
 }
