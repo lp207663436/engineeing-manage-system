@@ -28,6 +28,8 @@ public class DbInitRunner implements CommandLineRunner {
         createContractTable();
         createQuoteTable();
         createEquipmentTable();
+        createProgressTable();
+        createAcceptanceTable();
         seedBusinessMenus();
         System.out.println("[DbInitRunner] 业务模块表初始化完成");
     }
@@ -135,6 +137,56 @@ public class DbInitRunner implements CommandLineRunner {
                 ") COMMENT '设备台账表'");
     }
 
+    private void createProgressTable() {
+        exec("CREATE TABLE IF NOT EXISTS progress (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '进度编号'," +
+                "project_id BIGINT COMMENT '关联项目'," +
+                "business_type VARCHAR(30) NOT NULL DEFAULT 'NEW_BUILD' COMMENT 'NEW_BUILD/MAINTENANCE_POINT'," +
+                "business_id BIGINT COMMENT '业务ID'," +
+                "node_name VARCHAR(200) NOT NULL COMMENT '节点名称'," +
+                "plan_start_date DATE COMMENT '计划开始'," +
+                "plan_end_date DATE COMMENT '计划结束'," +
+                "actual_start_date DATE COMMENT '实际开始'," +
+                "actual_end_date DATE COMMENT '实际结束'," +
+                "progress_percent INT DEFAULT 0 COMMENT '进度百分比'," +
+                "manager_id BIGINT COMMENT '负责人'," +
+                "status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/IN_PROGRESS/COMPLETED/OVERDUE'," +
+                "remark VARCHAR(500) COMMENT '备注'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_business (business_type, business_id)," +
+                "INDEX idx_project (project_id)" +
+                ") COMMENT '项目进度表'");
+    }
+
+    private void createAcceptanceTable() {
+        exec("CREATE TABLE IF NOT EXISTS acceptance (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '验收单编号'," +
+                "project_id BIGINT COMMENT '关联项目'," +
+                "business_type VARCHAR(30) NOT NULL DEFAULT 'NEW_BUILD' COMMENT 'NEW_BUILD/MAINTENANCE_POINT'," +
+                "business_id BIGINT COMMENT '业务ID'," +
+                "quote_id BIGINT COMMENT '关联报价'," +
+                "acceptor_id BIGINT COMMENT '验收人'," +
+                "accept_date DATE COMMENT '验收日期'," +
+                "actual_quantity VARCHAR(500) COMMENT '实际工程量'," +
+                "result VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/PASS/FAIL/RECTIFYING/ARBITRATION'," +
+                "rectify_count INT DEFAULT 0 COMMENT '整改次数(上限3)'," +
+                "remark VARCHAR(500) COMMENT '验收结论说明'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_business (business_type, business_id)," +
+                "INDEX idx_project (project_id)" +
+                ") COMMENT '项目验收表'");
+    }
+
     private void seedBusinessMenus() {
         // 目录与菜单(INSERT IGNORE 幂等)
         String[][] menus = {
@@ -154,7 +206,15 @@ public class DbInitRunner implements CommandLineRunner {
                 {"2033", "203", "报价删除", "3", "business:quote:delete", "", "", "3"},
                 {"2041", "204", "设备新增", "3", "business:equipment:create", "", "", "1"},
                 {"2042", "204", "设备编辑", "3", "business:equipment:update", "", "", "2"},
-                {"2043", "204", "设备删除", "3", "business:equipment:delete", "", "", "3"}
+                {"2043", "204", "设备删除", "3", "business:equipment:delete", "", "", "3"},
+                {"205", "200", "进度管理", "2", "business:progress:list", "/business/progress", "ListTree", "5"},
+                {"206", "200", "验收管理", "2", "business:acceptance:list", "/business/acceptance", "CheckSquare", "6"},
+                {"2051", "205", "进度新增", "3", "business:progress:create", "", "", "1"},
+                {"2052", "205", "进度编辑", "3", "business:progress:update", "", "", "2"},
+                {"2053", "205", "进度删除", "3", "business:progress:delete", "", "", "3"},
+                {"2061", "206", "验收新增", "3", "business:acceptance:create", "", "", "1"},
+                {"2062", "206", "验收编辑", "3", "business:acceptance:update", "", "", "2"},
+                {"2063", "206", "验收删除", "3", "business:acceptance:delete", "", "", "3"}
         };
         for (String[] m : menus) {
             jdbc.update("INSERT IGNORE INTO sys_menu (id, parent_id, name, type, permission, path, icon, sort, status) " +
@@ -167,6 +227,6 @@ public class DbInitRunner implements CommandLineRunner {
         }
         // 给 admin(role_id=1)分配权限,幂等
         jdbc.update("INSERT IGNORE INTO sys_role_menu (role_id, menu_id) " +
-                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2043");
+                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2063");
     }
 }
