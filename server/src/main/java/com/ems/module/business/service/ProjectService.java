@@ -3,6 +3,7 @@ package com.ems.module.business.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
+import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.ProjectDTO;
 import com.ems.module.business.entity.Project;
@@ -26,6 +27,7 @@ public class ProjectService {
         if (StringUtils.hasText(name)) wrapper.like(Project::getName, name);
         if (StringUtils.hasText(type)) wrapper.eq(Project::getType, type);
         if (StringUtils.hasText(status)) wrapper.eq(Project::getStatus, status);
+        DataScopeHelper.applyTo(wrapper);
         wrapper.orderByDesc(Project::getCreateTime);
         Page<Project> page = projectMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal());

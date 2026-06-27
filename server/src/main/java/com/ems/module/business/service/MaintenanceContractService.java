@@ -3,6 +3,7 @@ package com.ems.module.business.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
+import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.MaintenanceContractDTO;
 import com.ems.module.business.entity.MaintenanceContract;
@@ -27,6 +28,7 @@ public class MaintenanceContractService {
         if (StringUtils.hasText(code)) wrapper.like(MaintenanceContract::getCode, code);
         if (StringUtils.hasText(name)) wrapper.like(MaintenanceContract::getName, name);
         if (StringUtils.hasText(status)) wrapper.eq(MaintenanceContract::getStatus, status);
+        DataScopeHelper.applyTo(wrapper);
         if (projectId != null) wrapper.eq(MaintenanceContract::getProjectId, projectId);
         wrapper.orderByDesc(MaintenanceContract::getCreateTime);
         Page<MaintenanceContract> page = maintenanceContractMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);

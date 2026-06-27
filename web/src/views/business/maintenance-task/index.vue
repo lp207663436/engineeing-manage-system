@@ -5,9 +5,11 @@ import {
   maintenanceTaskApi,
   projectApi,
   maintenancePointApi,
+  equipmentApi,
   type MaintenanceTaskDTO,
   type ProjectDTO,
   type MaintenancePointDTO,
+  type EquipmentDTO,
 } from '@/api/business'
 import { userApi } from '@/api/system'
 
@@ -20,32 +22,61 @@ interface Row extends MaintenanceTaskDTO {
 const loading = ref(false)
 const tableData = ref<Row[]>([])
 const total = ref(0)
-const query = reactive({ pageNum: 1, pageSize: 10, code: '', status: '', projectId: '', pointId: '' })
+const query = reactive({
+  pageNum: 1,
+  pageSize: 10,
+  code: '',
+  status: '',
+  projectId: '',
+  equipmentId: '',
+})
 
 const projectOptions = ref<ProjectDTO[]>([])
 const pointOptions = ref<MaintenancePointDTO[]>([])
+const equipmentOptions = ref<EquipmentDTO[]>([])
 const userOptions = ref<Option[]>([])
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const formRef = ref<FormInstance>()
 const form = reactive<MaintenanceTaskDTO>({
-  code: '', projectId: undefined, pointId: undefined, type: 'INSPECTION',
-  reporterId: undefined, handlerId: undefined, planDate: '', finishDate: '',
-  status: 'PENDING', priority: 'MEDIUM', description: '', result: '',
+  code: '',
+  projectId: undefined,
+  pointId: undefined,
+  equipmentId: undefined,
+  type: 'INSPECTION',
+  title: '',
+  description: '',
+  reporterId: undefined,
+  handlerId: undefined,
+  handleMethod: '',
+  partsUsed: '',
+  status: 'PENDING',
+  planDate: '',
+  completeDate: '',
+  planInspectDate: '',
+  remark: '',
 })
 const isEdit = ref(false)
 
 type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
 const typeMap: Record<string, string> = { INSPECTION: '巡检', REPAIR: '故障维修' }
 const typeTagType: Record<string, TagType> = { INSPECTION: 'primary', REPAIR: 'warning' }
-const priorityMap: Record<string, string> = { LOW: '低', MEDIUM: '中', HIGH: '高', URGENT: '紧急' }
-const priorityTagType: Record<string, TagType> = { LOW: 'info', MEDIUM: 'info', HIGH: 'warning', URGENT: 'danger' }
 const statusMap: Record<string, string> = {
-  PENDING: '待处理', ASSIGNED: '已派单', IN_PROGRESS: '处理中', COMPLETED: '已完成', CANCELLED: '已取消',
+  PENDING: '待派单',
+  ASSIGNED: '已派单',
+  PROCESSING: '处理中',
+  WAITING_ACCEPTANCE: '待验收',
+  COMPLETED: '已完成',
+  CLOSED: '已关闭',
 }
 const statusTagType: Record<string, TagType> = {
-  PENDING: 'info', ASSIGNED: 'primary', IN_PROGRESS: 'warning', COMPLETED: 'success', CANCELLED: 'info',
+  PENDING: 'info',
+  ASSIGNED: 'primary',
+  PROCESSING: 'warning',
+  WAITING_ACCEPTANCE: 'warning',
+  COMPLETED: 'success',
+  CLOSED: 'info',
 }
 
 async function loadProjects() {
@@ -59,6 +90,13 @@ async function loadPoints() {
   try {
     const res: any = await maintenancePointApi.page({ pageNum: 1, pageSize: 200 })
     pointOptions.value = res.list || []
+  } catch {}
+}
+
+async function loadEquipments() {
+  try {
+    const res: any = await equipmentApi.page({ pageNum: 1, pageSize: 200 })
+    equipmentOptions.value = res.list || []
   } catch {}
 }
 
@@ -89,7 +127,7 @@ function handleReset() {
   query.code = ''
   query.status = ''
   query.projectId = ''
-  query.pointId = ''
+  query.equipmentId = ''
   handleSearch()
 }
 
@@ -97,9 +135,23 @@ function handleAdd() {
   isEdit.value = false
   dialogTitle.value = '新增维保任务'
   Object.assign(form, {
-    id: undefined, code: '', projectId: undefined, pointId: undefined, type: 'INSPECTION',
-    reporterId: undefined, handlerId: undefined, planDate: '', finishDate: '',
-    status: 'PENDING', priority: 'MEDIUM', description: '', result: '',
+    id: undefined,
+    code: '',
+    projectId: undefined,
+    pointId: undefined,
+    equipmentId: undefined,
+    type: 'INSPECTION',
+    title: '',
+    description: '',
+    reporterId: undefined,
+    handlerId: undefined,
+    handleMethod: '',
+    partsUsed: '',
+    status: 'PENDING',
+    planDate: '',
+    completeDate: '',
+    planInspectDate: '',
+    remark: '',
   })
   dialogVisible.value = true
 }
@@ -108,10 +160,23 @@ function handleEdit(row: Row) {
   isEdit.value = true
   dialogTitle.value = '编辑维保任务'
   Object.assign(form, {
-    id: row.id, code: row.code, projectId: row.projectId, pointId: row.pointId,
-    type: row.type || 'INSPECTION', reporterId: row.reporterId, handlerId: row.handlerId,
-    planDate: row.planDate, finishDate: row.finishDate, status: row.status || 'PENDING',
-    priority: row.priority || 'MEDIUM', description: row.description, result: row.result,
+    id: row.id,
+    code: row.code,
+    projectId: row.projectId,
+    pointId: row.pointId,
+    equipmentId: row.equipmentId,
+    type: row.type || 'INSPECTION',
+    title: row.title,
+    description: row.description,
+    reporterId: row.reporterId,
+    handlerId: row.handlerId,
+    handleMethod: row.handleMethod,
+    partsUsed: row.partsUsed,
+    status: row.status || 'PENDING',
+    planDate: row.planDate,
+    completeDate: row.completeDate,
+    planInspectDate: row.planInspectDate,
+    remark: row.remark,
   })
   dialogVisible.value = true
 }
@@ -143,14 +208,20 @@ async function handleDelete(row: Row) {
   } catch {}
 }
 
+function reporterName(row: Row) {
+  return userOptions.value.find((u) => u.value === row.reporterId)?.label || row.reporterId || '-'
+}
+
+function handlerName(row: Row) {
+  return userOptions.value.find((u) => u.value === row.handlerId)?.label || row.handlerId || '-'
+}
+
 const rules = {
   code: [{ required: true, message: '请输入任务编号', trigger: 'blur' }],
 }
 
-onMounted(() => {
-  loadProjects()
-  loadPoints()
-  loadUsers()
+onMounted(async () => {
+  await Promise.all([loadProjects(), loadPoints(), loadEquipments(), loadUsers()])
   loadData()
 })
 </script>
@@ -164,7 +235,13 @@ onMounted(() => {
     <div class="card search-bar">
       <el-form inline>
         <el-form-item label="编号">
-          <el-input v-model="query.code" placeholder="任务编号" clearable style="width: 160px" @keyup.enter="handleSearch" />
+          <el-input
+            v-model="query.code"
+            placeholder="任务编号"
+            clearable
+            style="width: 160px"
+            @keyup.enter="handleSearch"
+          />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="query.status" placeholder="全部" clearable style="width: 140px">
@@ -172,13 +249,30 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item label="项目">
-          <el-select v-model="query.projectId" placeholder="全部" clearable filterable style="width: 200px">
+          <el-select
+            v-model="query.projectId"
+            placeholder="全部"
+            clearable
+            filterable
+            style="width: 200px"
+          >
             <el-option v-for="p in projectOptions" :key="p.id" :label="p.name" :value="p.id!" />
           </el-select>
         </el-form-item>
-        <el-form-item label="点位">
-          <el-select v-model="query.pointId" placeholder="全部" clearable filterable style="width: 180px">
-            <el-option v-for="p in pointOptions" :key="p.id" :label="p.name" :value="p.id!" />
+        <el-form-item label="设备">
+          <el-select
+            v-model="query.equipmentId"
+            placeholder="全部"
+            clearable
+            filterable
+            style="width: 200px"
+          >
+            <el-option
+              v-for="e in equipmentOptions"
+              :key="e.id"
+              :label="`${e.code} ${e.name}`"
+              :value="e.id!"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -201,13 +295,7 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="优先级" width="90">
-          <template #default="{ row }">
-            <el-tag :type="priorityTagType[row.priority] || 'info'" size="small" effect="light">
-              {{ priorityMap[row.priority] || row.priority }}
-            </el-tag>
-          </template>
-        </el-table-column>
+        <el-table-column prop="title" label="标题" min-width="160" show-overflow-tooltip />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="statusTagType[row.status] || 'info'" size="small" effect="light">
@@ -215,10 +303,14 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="reporterId" label="报修人" min-width="120" />
-        <el-table-column prop="handlerId" label="处理人" min-width="120" />
+        <el-table-column label="报修人" min-width="100">
+          <template #default="{ row }">{{ reporterName(row as Row) }}</template>
+        </el-table-column>
+        <el-table-column label="处理人" min-width="100">
+          <template #default="{ row }">{{ handlerName(row as Row) }}</template>
+        </el-table-column>
         <el-table-column prop="planDate" label="计划日期" min-width="120" />
-        <el-table-column prop="finishDate" label="完成日期" min-width="120" />
+        <el-table-column prop="completeDate" label="完工日期" min-width="120" />
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
@@ -240,28 +332,14 @@ onMounted(() => {
       </div>
     </div>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="640px">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="任务编号" prop="code">
-          <el-input v-model="form.code" :disabled="isEdit" placeholder="如 T2026-001" />
-        </el-form-item>
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="780px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="所属项目">
-              <el-select v-model="form.projectId" placeholder="选择项目" filterable clearable style="width: 100%">
-                <el-option v-for="p in projectOptions" :key="p.id" :label="p.name" :value="p.id!" />
-              </el-select>
+            <el-form-item label="任务编号" prop="code">
+              <el-input v-model="form.code" :disabled="isEdit" placeholder="如 T2026-001" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="维护点位">
-              <el-select v-model="form.pointId" placeholder="选择点位" filterable clearable style="width: 100%">
-                <el-option v-for="p in pointOptions" :key="p.id" :label="p.name" :value="p.id!" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="任务类型">
               <el-select v-model="form.type" style="width: 100%">
@@ -269,52 +347,144 @@ onMounted(() => {
               </el-select>
             </el-form-item>
           </el-col>
+        </el-row>
+        <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="优先级">
-              <el-select v-model="form.priority" style="width: 100%">
-                <el-option v-for="(label, key) in priorityMap" :key="key" :label="label" :value="key" />
+            <el-form-item label="所属项目">
+              <el-select
+                v-model="form.projectId"
+                placeholder="选择项目"
+                filterable
+                clearable
+                style="width: 100%"
+              >
+                <el-option v-for="p in projectOptions" :key="p.id" :label="p.name" :value="p.id!" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="维护点位">
+              <el-select
+                v-model="form.pointId"
+                placeholder="选择点位"
+                filterable
+                clearable
+                style="width: 100%"
+              >
+                <el-option v-for="p in pointOptions" :key="p.id" :label="p.name" :value="p.id!" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
+            <el-form-item label="故障设备">
+              <el-select
+                v-model="form.equipmentId"
+                placeholder="选择设备"
+                filterable
+                clearable
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="e in equipmentOptions"
+                  :key="e.id"
+                  :label="`${e.code} ${e.name}`"
+                  :value="e.id!"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="任务状态">
+              <el-select v-model="form.status" style="width: 100%">
+                <el-option v-for="(label, key) in statusMap" :key="key" :label="label" :value="key" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="标题">
+          <el-input v-model="form.title" placeholder="任务标题" />
+        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
             <el-form-item label="报修人">
-              <el-select v-model="form.reporterId" placeholder="请选择报修人" clearable filterable style="width: 100%">
+              <el-select
+                v-model="form.reporterId"
+                placeholder="请选择报修人"
+                clearable
+                filterable
+                style="width: 100%"
+              >
                 <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="处理人">
-              <el-select v-model="form.handlerId" placeholder="请选择处理人" clearable filterable style="width: 100%">
+              <el-select
+                v-model="form.handlerId"
+                placeholder="请选择处理人"
+                clearable
+                filterable
+                style="width: 100%"
+              >
                 <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="计划日期">
-              <el-date-picker v-model="form.planDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
+              <el-date-picker
+                v-model="form.planDate"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="选择日期"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="完成日期">
-              <el-date-picker v-model="form.finishDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
+          <el-col :span="8">
+            <el-form-item label="计划巡检日期">
+              <el-date-picker
+                v-model="form.planInspectDate"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="选择日期"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="完工日期">
+              <el-date-picker
+                v-model="form.completeDate"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="选择日期"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="任务状态">
-          <el-select v-model="form.status" style="width: 100%">
-            <el-option v-for="(label, key) in statusMap" :key="key" :label="label" :value="key" />
-          </el-select>
+        <el-form-item label="故障现象/描述">
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="3"
+            placeholder="故障现象/任务描述"
+          />
         </el-form-item>
-        <el-form-item label="任务描述">
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="任务描述" />
+        <el-form-item label="处理方法">
+          <el-input v-model="form.handleMethod" type="textarea" :rows="3" placeholder="处理方法" />
         </el-form-item>
-        <el-form-item label="处理结果">
-          <el-input v-model="form.result" type="textarea" :rows="3" placeholder="处理结果" />
+        <el-form-item label="更换配件">
+          <el-input v-model="form.partsUsed" placeholder="更换配件" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="form.remark" placeholder="备注" />
         </el-form-item>
       </el-form>
       <template #footer>

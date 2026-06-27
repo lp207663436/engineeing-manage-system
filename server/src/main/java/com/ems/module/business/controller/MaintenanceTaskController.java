@@ -88,4 +88,10 @@ public class MaintenanceTaskController {
         maintenanceTaskService.delete(id);
         return Result.success();
     }
+
+    @PostMapping("/generate-inspection")
+    @RequirePermission("business:maintenanceTask:create")
+    public Result<Integer> generateInspection(@RequestParam Long contractId) {
+        return Result.success(maintenanceTaskService.generateInspection(contractId));
+    }
 }

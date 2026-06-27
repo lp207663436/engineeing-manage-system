@@ -2,6 +2,7 @@ package com.ems.module.business.controller;
 
 import com.ems.common.PageResult;
 import com.ems.common.Result;
+import com.ems.common.datascope.DataScope;
 import com.ems.module.business.dto.ProgressDTO;
 import com.ems.module.business.entity.Progress;
 import com.ems.module.business.service.ProgressService;
@@ -19,6 +20,7 @@ public class ProgressController {
 
     @GetMapping("/page")
     @RequirePermission("business:progress:list")
+    @DataScope
     public Result<PageResult<Progress>> page(@RequestParam(defaultValue = "1") long pageNum,
                                              @RequestParam(defaultValue = "10") long pageSize,
                                              @RequestParam(required = false) String code,

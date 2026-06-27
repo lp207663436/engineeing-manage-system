@@ -2,6 +2,7 @@ package com.ems.module.business.controller;
 
 import com.ems.common.PageResult;
 import com.ems.common.Result;
+import com.ems.common.datascope.DataScope;
 import com.ems.module.business.dto.QuoteDTO;
 import com.ems.module.business.entity.Quote;
 import com.ems.module.business.service.QuoteService;
@@ -19,6 +20,7 @@ public class QuoteController {
 
     @GetMapping("/page")
     @RequirePermission("business:quote:list")
+    @DataScope
     public Result<PageResult<Quote>> page(@RequestParam(defaultValue = "1") long pageNum,
                                           @RequestParam(defaultValue = "10") long pageSize,
                                           @RequestParam(required = false) String code,

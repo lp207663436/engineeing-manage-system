@@ -2,6 +2,7 @@ package com.ems.module.business.controller;
 
 import com.ems.common.PageResult;
 import com.ems.common.Result;
+import com.ems.common.datascope.DataScope;
 import com.ems.module.business.dto.AcceptanceDTO;
 import com.ems.module.business.entity.Acceptance;
 import com.ems.module.business.service.AcceptanceService;
@@ -21,6 +22,7 @@ public class AcceptanceController {
 
     @GetMapping("/page")
     @RequirePermission("business:acceptance:list")
+    @DataScope
     public Result<PageResult<Acceptance>> page(@RequestParam(defaultValue = "1") long pageNum,
                                                @RequestParam(defaultValue = "10") long pageSize,
                                                @RequestParam(required = false) String code,

@@ -318,6 +318,12 @@ public class DbInitRunner implements CommandLineRunner {
                 "INDEX idx_equipment (equipment_id)," +
                 "INDEX idx_status (status)" +
                 ") COMMENT '维保任务/工单表'");
+        // 补充 plan_inspect_date 列(已有表兼容)
+        try {
+            exec("ALTER TABLE maintenance_task ADD COLUMN plan_inspect_date DATE COMMENT '计划巡检日期' AFTER plan_date");
+        } catch (Exception ignore) {
+            // 列已存在则忽略
+        }
     }
 
     private void createMaintenanceRecordTable() {

@@ -29,6 +29,10 @@ public class MaintenanceTask extends BaseEntity {
      */
     private String status;
     private LocalDate planDate;
+    /**
+     * 计划巡检日期(巡检任务用)
+     */
+    private LocalDate planInspectDate;
     private LocalDate completeDate;
     private String remark;
 }

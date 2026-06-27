@@ -3,6 +3,7 @@ package com.ems.module.business.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
+import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.entity.Attachment;
 import com.ems.module.business.mapper.AttachmentMapper;
@@ -23,6 +24,7 @@ public class AttachmentService {
         if (StringUtils.hasText(name)) wrapper.like(Attachment::getName, name);
         if (StringUtils.hasText(businessType)) wrapper.eq(Attachment::getBusinessType, businessType);
         if (businessId != null) wrapper.eq(Attachment::getBusinessId, businessId);
+        DataScopeHelper.applyTo(wrapper);
         wrapper.orderByDesc(Attachment::getCreateTime);
         Page<Attachment> page = attachmentMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal());

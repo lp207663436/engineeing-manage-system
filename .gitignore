@@ -28,3 +28,8 @@ application-local.properties
 # 系统
 .DS_Store
 Thumbs.db
+
+# 上传文件与临时凭证
+server/uploads/
+*_token.txt
+*.token

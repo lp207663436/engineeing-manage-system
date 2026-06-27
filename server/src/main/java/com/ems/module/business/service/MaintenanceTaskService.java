@@ -5,7 +5,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.MaintenanceTaskDTO;
+import com.ems.module.business.entity.MaintenanceContract;
+import com.ems.module.business.entity.MaintenancePoint;
 import com.ems.module.business.entity.MaintenanceTask;
+import com.ems.module.business.mapper.MaintenanceContractMapper;
+import com.ems.module.business.mapper.MaintenancePointMapper;
 import com.ems.module.business.mapper.MaintenanceTaskMapper;
 import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
@@ -14,12 +18,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class MaintenanceTaskService {
 
     private final MaintenanceTaskMapper maintenanceTaskMapper;
+    private final MaintenanceContractMapper maintenanceContractMapper;
+    private final MaintenancePointMapper maintenancePointMapper;
 
     public PageResult<MaintenanceTask> page(long pageNum, long pageSize, String code, String type,
                                              String status, Long projectId, Long equipmentId) {
@@ -44,6 +51,7 @@ public class MaintenanceTaskService {
         MaintenanceTask t = new MaintenanceTask();
         BeanUtils.copyProperties(dto, t);
         if (StringUtils.hasText(dto.getPlanDate())) t.setPlanDate(LocalDate.parse(dto.getPlanDate()));
+        if (StringUtils.hasText(dto.getPlanInspectDate())) t.setPlanInspectDate(LocalDate.parse(dto.getPlanInspectDate()));
         if (StringUtils.hasText(dto.getCompleteDate())) t.setCompleteDate(LocalDate.parse(dto.getCompleteDate()));
         if (!StringUtils.hasText(t.getStatus())) t.setStatus("PENDING");
         t.setCreateBy(SecurityContext.getUserId());
@@ -55,6 +63,7 @@ public class MaintenanceTaskService {
         MaintenanceTask existing = get(dto.getId());
         BeanUtils.copyProperties(dto, existing);
         if (StringUtils.hasText(dto.getPlanDate())) existing.setPlanDate(LocalDate.parse(dto.getPlanDate()));
+        if (StringUtils.hasText(dto.getPlanInspectDate())) existing.setPlanInspectDate(LocalDate.parse(dto.getPlanInspectDate()));
         if (StringUtils.hasText(dto.getCompleteDate())) existing.setCompleteDate(LocalDate.parse(dto.getCompleteDate()));
         maintenanceTaskMapper.updateById(existing);
     }
@@ -103,5 +112,44 @@ public class MaintenanceTaskService {
     public void delete(Long id) {
         get(id);
         maintenanceTaskMapper.deleteById(id);
+    }
+
+    public Integer generateInspection(Long contractId) {
+        MaintenanceContract contract = maintenanceContractMapper.selectById(contractId);
+        if (contract == null) throw new BusinessException("维保合同不存在");
+        if (!"ACTIVE".equals(contract.getStatus())) throw new BusinessException("合同非生效状态");
+        if (contract.getProjectId() == null) return 0;
+
+        LambdaQueryWrapper<MaintenancePoint> pWrapper = new LambdaQueryWrapper<>();
+        pWrapper.eq(MaintenancePoint::getProjectId, contract.getProjectId());
+        List<MaintenancePoint> points = maintenancePointMapper.selectList(pWrapper);
+
+        LocalDate today = LocalDate.now();
+        String planCode = "INS-" + today.getYear() + String.format("%02d", today.getMonthValue());
+        int generated = 0;
+        for (MaintenancePoint point : points) {
+            LambdaQueryWrapper<MaintenanceTask> tWrapper = new LambdaQueryWrapper<>();
+            tWrapper.eq(MaintenanceTask::getProjectId, contract.getProjectId())
+                    .eq(MaintenanceTask::getPointId, point.getId())
+                    .eq(MaintenanceTask::getType, "INSPECTION")
+                    .likeRight(MaintenanceTask::getCode, planCode);
+            Long exists = maintenanceTaskMapper.selectCount(tWrapper);
+            if (exists > 0) continue;
+
+            MaintenanceTask task = new MaintenanceTask();
+            task.setCode(planCode + "-" + point.getId());
+            task.setProjectId(contract.getProjectId());
+            task.setPointId(point.getId());
+            task.setType("INSPECTION");
+            task.setTitle(point.getName() + " 月度巡检");
+            task.setDescription("手动触发的月度巡检工单");
+            task.setStatus("PENDING");
+            task.setPlanDate(today);
+            task.setPlanInspectDate(today.plusDays(7));
+            task.setCreateBy(SecurityContext.getUserId());
+            maintenanceTaskMapper.insert(task);
+            generated++;
+        }
+        return generated;
     }
 }

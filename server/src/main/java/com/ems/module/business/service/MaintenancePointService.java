@@ -3,6 +3,7 @@ package com.ems.module.business.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
+import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.MaintenancePointDTO;
 import com.ems.module.business.entity.MaintenancePoint;
@@ -26,6 +27,7 @@ public class MaintenancePointService {
         if (StringUtils.hasText(name)) wrapper.like(MaintenancePoint::getName, name);
         if (StringUtils.hasText(status)) wrapper.eq(MaintenancePoint::getStatus, status);
         if (projectId != null) wrapper.eq(MaintenancePoint::getProjectId, projectId);
+        DataScopeHelper.applyTo(wrapper);
         wrapper.orderByDesc(MaintenancePoint::getCreateTime);
         Page<MaintenancePoint> page = maintenancePointMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal());

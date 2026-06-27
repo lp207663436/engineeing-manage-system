@@ -3,6 +3,7 @@ package com.ems.module.business.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
+import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.ProgressDTO;
 import com.ems.module.business.entity.Progress;
@@ -29,6 +30,7 @@ public class ProgressService {
         if (StringUtils.hasText(status)) wrapper.eq(Progress::getStatus, status);
         if (StringUtils.hasText(businessType)) wrapper.eq(Progress::getBusinessType, businessType);
         if (businessId != null) wrapper.eq(Progress::getBusinessId, businessId);
+        DataScopeHelper.applyTo(wrapper);
         wrapper.orderByDesc(Progress::getCreateTime);
         Page<Progress> page = progressMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal());

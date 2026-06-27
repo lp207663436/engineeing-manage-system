@@ -22,6 +22,7 @@ public class MaintenanceTaskDTO {
     private String partsUsed;
     private String status;
     private String planDate;
+    private String planInspectDate;
     private String completeDate;
     private String remark;
 }

@@ -3,6 +3,7 @@ package com.ems.module.business.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
+import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.QuoteDTO;
 import com.ems.module.business.entity.Quote;
@@ -26,6 +27,7 @@ public class QuoteService {
         if (StringUtils.hasText(code)) wrapper.like(Quote::getCode, code);
         if (StringUtils.hasText(customerName)) wrapper.like(Quote::getCustomerName, customerName);
         if (StringUtils.hasText(status)) wrapper.eq(Quote::getStatus, status);
+        DataScopeHelper.applyTo(wrapper);
         wrapper.orderByDesc(Quote::getCreateTime);
         Page<Quote> page = quoteMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal());

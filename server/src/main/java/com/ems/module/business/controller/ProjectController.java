@@ -2,6 +2,7 @@ package com.ems.module.business.controller;
 
 import com.ems.common.PageResult;
 import com.ems.common.Result;
+import com.ems.common.datascope.DataScope;
 import com.ems.module.business.dto.ProjectDTO;
 import com.ems.module.business.entity.Project;
 import com.ems.module.business.service.ProjectService;
@@ -19,6 +20,7 @@ public class ProjectController {
 
     @GetMapping("/page")
     @RequirePermission("business:project:list")
+    @DataScope
     public Result<PageResult<Project>> page(@RequestParam(defaultValue = "1") long pageNum,
                                             @RequestParam(defaultValue = "10") long pageSize,
                                             @RequestParam(required = false) String name,

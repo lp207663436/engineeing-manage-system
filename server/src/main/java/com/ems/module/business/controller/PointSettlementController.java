@@ -2,6 +2,7 @@ package com.ems.module.business.controller;
 
 import com.ems.common.PageResult;
 import com.ems.common.Result;
+import com.ems.common.datascope.DataScope;
 import com.ems.module.business.dto.PointSettlementDTO;
 import com.ems.module.business.entity.PointSettlement;
 import com.ems.module.business.service.PointSettlementService;
@@ -18,6 +19,7 @@ public class PointSettlementController {
     private final PointSettlementService pointSettlementService;
 
     @GetMapping("/page")
+    @DataScope
     @RequirePermission("business:pointSettlement:list")
     public Result<PageResult<PointSettlement>> page(@RequestParam(defaultValue = "1") long pageNum,
                                                     @RequestParam(defaultValue = "10") long pageSize,

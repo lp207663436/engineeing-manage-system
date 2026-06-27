@@ -2,6 +2,7 @@ package com.ems.module.business.controller;
 
 import com.ems.common.PageResult;
 import com.ems.common.Result;
+import com.ems.common.datascope.DataScope;
 import com.ems.module.business.dto.MaintenanceRecordDTO;
 import com.ems.module.business.entity.MaintenanceRecord;
 import com.ems.module.business.service.MaintenanceRecordService;
@@ -21,6 +22,7 @@ public class MaintenanceRecordController {
 
     @GetMapping("/page")
     @RequirePermission("business:maintenanceRecord:list")
+    @DataScope
     public Result<PageResult<MaintenanceRecord>> page(@RequestParam(defaultValue = "1") long pageNum,
                                                        @RequestParam(defaultValue = "10") long pageSize,
                                                        @RequestParam(required = false) String code,

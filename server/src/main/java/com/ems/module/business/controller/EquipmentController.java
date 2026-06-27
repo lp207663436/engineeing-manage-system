@@ -2,6 +2,7 @@ package com.ems.module.business.controller;
 
 import com.ems.common.PageResult;
 import com.ems.common.Result;
+import com.ems.common.datascope.DataScope;
 import com.ems.module.business.dto.EquipmentDTO;
 import com.ems.module.business.entity.Equipment;
 import com.ems.module.business.service.EquipmentService;
@@ -19,6 +20,7 @@ public class EquipmentController {
 
     @GetMapping("/page")
     @RequirePermission("business:equipment:list")
+    @DataScope
     public Result<PageResult<Equipment>> page(@RequestParam(defaultValue = "1") long pageNum,
                                               @RequestParam(defaultValue = "10") long pageSize,
                                               @RequestParam(required = false) String code,

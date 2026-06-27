@@ -91,7 +91,7 @@ const rules = {
   code: [{ required: true, message: '请输入角色编码', trigger: 'blur' }],
 }
 
-const dataScopeMap: Record<number, string> = { 1: '全部', 2: '本部门', 3: '本人' }
+const dataScopeMap: Record<number, string> = { 1: '全部', 2: '本部门', 3: '本人', 4: '本部门及下属' }
 
 onMounted(loadData)
 </script>
@@ -154,7 +154,8 @@ onMounted(loadData)
           <el-select v-model="form.dataScope" style="width: 100%">
             <el-option :value="1" label="全部数据" />
             <el-option :value="2" label="本部门数据" />
-            <el-option :value="3" label="本人数据" />
+            <el-option :value="3" label="本部门及下属数据" />
+            <el-option :value="4" label="本人数据" />
           </el-select>
         </el-form-item>
         <el-form-item label="排序"><el-input-number v-model="form.sort" :min="0" /></el-form-item>

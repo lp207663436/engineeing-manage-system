@@ -2,6 +2,7 @@ package com.ems.module.business.controller;
 
 import com.ems.common.PageResult;
 import com.ems.common.Result;
+import com.ems.common.datascope.DataScope;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.entity.Attachment;
 import com.ems.module.business.service.AttachmentService;
@@ -34,6 +35,7 @@ public class AttachmentController {
 
     @GetMapping("/page")
     @RequirePermission("business:attachment:list")
+    @DataScope
     public Result<PageResult<Attachment>> page(@RequestParam(defaultValue = "1") long pageNum,
                                                 @RequestParam(defaultValue = "10") long pageSize,
                                                 @RequestParam(required = false) String name,

@@ -271,19 +271,23 @@ export interface MaintenanceTaskDTO {
   code: string
   projectId?: string
   pointId?: string
+  equipmentId?: string
   type?: string
+  title?: string
+  description?: string
   reporterId?: string
   handlerId?: string
-  planDate?: string
-  finishDate?: string
+  handleMethod?: string
+  partsUsed?: string
   status?: string
-  priority?: string
-  description?: string
-  result?: string
+  planDate?: string
+  completeDate?: string
+  planInspectDate?: string
+  remark?: string
 }
 
 export const maintenanceTaskApi = {
-  page: (params: { pageNum: number; pageSize: number; code?: string; status?: string; projectId?: string; pointId?: string }) =>
+  page: (params: { pageNum: number; pageSize: number; code?: string; type?: string; status?: string; projectId?: string; equipmentId?: string }) =>
     request.get('/business/maintenance-task/page', { params }),
   get: (id: string) => request.get(`/business/maintenance-task/${id}`),
   create: (data: MaintenanceTaskDTO) => request.post('/business/maintenance-task', data),

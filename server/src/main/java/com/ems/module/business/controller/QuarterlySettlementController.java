@@ -2,6 +2,7 @@ package com.ems.module.business.controller;
 
 import com.ems.common.PageResult;
 import com.ems.common.Result;
+import com.ems.common.datascope.DataScope;
 import com.ems.module.business.entity.QuarterlySettlement;
 import com.ems.module.business.service.QuarterlySettlementService;
 import com.ems.security.annotation.RequirePermission;
@@ -21,6 +22,7 @@ public class QuarterlySettlementController {
 
     @GetMapping("/page")
     @RequirePermission("business:quarterlySettlement:list")
+    @DataScope
     public Result<PageResult<QuarterlySettlement>> page(@RequestParam(defaultValue = "1") long pageNum,
                                                          @RequestParam(defaultValue = "10") long pageSize,
                                                          @RequestParam(required = false) String code,
