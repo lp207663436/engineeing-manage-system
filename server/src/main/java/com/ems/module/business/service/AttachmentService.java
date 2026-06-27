@@ -42,8 +42,9 @@ public class AttachmentService {
         return a;
     }
 
-    public void create(Attachment entity) {
+    public Attachment create(Attachment entity) {
         attachmentMapper.insert(entity);
+        return entity;
     }
 
     public void delete(Long id) {

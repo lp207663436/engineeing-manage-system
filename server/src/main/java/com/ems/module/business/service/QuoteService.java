@@ -37,7 +37,7 @@ public class QuoteService {
         return q;
     }
 
-    public void create(QuoteDTO dto) {
+    public Quote create(QuoteDTO dto) {
         Quote q = new Quote();
         BeanUtils.copyProperties(dto, q);
         if (StringUtils.hasText(dto.getQuoteDate())) q.setQuoteDate(LocalDate.parse(dto.getQuoteDate()));
@@ -48,6 +48,7 @@ public class QuoteService {
         if (q.getVersion() == null) q.setVersion(1);
         q.setCreateBy(SecurityContext.getUserId());
         quoteMapper.insert(q);
+        return q;
     }
 
     public void update(QuoteDTO dto) {

@@ -45,7 +45,7 @@ public class PointSettlementService {
         return s;
     }
 
-    public void create(PointSettlementDTO dto) {
+    public PointSettlement create(PointSettlementDTO dto) {
         // 强校验:关联验收单必须存在且 result=PASS(验收通过)
         if (dto.getAcceptanceId() == null) {
             throw new BusinessException("点位验收未通过,不可结算");
@@ -65,6 +65,7 @@ public class PointSettlementService {
         if (!StringUtils.hasText(s.getStatus())) s.setStatus("PENDING");
         s.setCreateBy(SecurityContext.getUserId());
         pointSettlementMapper.insert(s);
+        return s;
     }
 
     public void update(PointSettlementDTO dto) {

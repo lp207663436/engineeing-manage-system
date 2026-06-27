@@ -37,7 +37,7 @@ public class ProjectService {
         return p;
     }
 
-    public void create(ProjectDTO dto) {
+    public Project create(ProjectDTO dto) {
         Project p = new Project();
         BeanUtils.copyProperties(dto, p);
         if (StringUtils.hasText(dto.getStartDate())) p.setStartDate(LocalDate.parse(dto.getStartDate()));
@@ -46,6 +46,7 @@ public class ProjectService {
         if (!StringUtils.hasText(p.getStatus())) p.setStatus("DRAFT");
         p.setCreateBy(SecurityContext.getUserId());
         projectMapper.insert(p);
+        return p;
     }
 
     public void update(ProjectDTO dto) {

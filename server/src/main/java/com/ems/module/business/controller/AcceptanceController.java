@@ -38,9 +38,8 @@ public class AcceptanceController {
 
     @PostMapping
     @RequirePermission("business:acceptance:create")
-    public Result<Void> create(@Valid @RequestBody AcceptanceDTO dto) {
-        acceptanceService.create(dto);
-        return Result.success();
+    public Result<Acceptance> create(@Valid @RequestBody AcceptanceDTO dto) {
+        return Result.success(acceptanceService.create(dto));
     }
 
     @PutMapping

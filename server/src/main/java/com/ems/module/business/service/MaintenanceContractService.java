@@ -39,7 +39,7 @@ public class MaintenanceContractService {
         return c;
     }
 
-    public void create(MaintenanceContractDTO dto) {
+    public MaintenanceContract create(MaintenanceContractDTO dto) {
         validatePeriod(dto.getPeriodMonths());
         MaintenanceContract c = new MaintenanceContract();
         BeanUtils.copyProperties(dto, c);
@@ -53,6 +53,7 @@ public class MaintenanceContractService {
         if (!StringUtils.hasText(c.getStatus())) c.setStatus("ACTIVE");
         c.setCreateBy(SecurityContext.getUserId());
         maintenanceContractMapper.insert(c);
+        return c;
     }
 
     public void update(MaintenanceContractDTO dto) {

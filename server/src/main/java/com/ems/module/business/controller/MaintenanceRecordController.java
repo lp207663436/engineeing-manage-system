@@ -38,9 +38,8 @@ public class MaintenanceRecordController {
 
     @PostMapping
     @RequirePermission("business:maintenanceRecord:create")
-    public Result<Void> create(@Valid @RequestBody MaintenanceRecordDTO dto) {
-        maintenanceRecordService.create(dto);
-        return Result.success();
+    public Result<MaintenanceRecord> create(@Valid @RequestBody MaintenanceRecordDTO dto) {
+        return Result.success(maintenanceRecordService.create(dto));
     }
 
     @PutMapping

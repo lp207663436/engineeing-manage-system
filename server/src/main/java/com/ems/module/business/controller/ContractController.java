@@ -35,9 +35,8 @@ public class ContractController {
 
     @PostMapping
     @RequirePermission("business:contract:create")
-    public Result<Void> create(@Valid @RequestBody ContractDTO dto) {
-        contractService.create(dto);
-        return Result.success();
+    public Result<Contract> create(@Valid @RequestBody ContractDTO dto) {
+        return Result.success(contractService.create(dto));
     }
 
     @PutMapping

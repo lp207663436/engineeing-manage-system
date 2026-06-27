@@ -37,9 +37,8 @@ public class ProgressController {
 
     @PostMapping
     @RequirePermission("business:progress:create")
-    public Result<Void> create(@Valid @RequestBody ProgressDTO dto) {
-        progressService.create(dto);
-        return Result.success();
+    public Result<Progress> create(@Valid @RequestBody ProgressDTO dto) {
+        return Result.success(progressService.create(dto));
     }
 
     @PutMapping

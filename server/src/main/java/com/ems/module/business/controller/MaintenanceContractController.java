@@ -36,9 +36,8 @@ public class MaintenanceContractController {
 
     @PostMapping
     @RequirePermission("business:maintenanceContract:create")
-    public Result<Void> create(@Valid @RequestBody MaintenanceContractDTO dto) {
-        maintenanceContractService.create(dto);
-        return Result.success();
+    public Result<MaintenanceContract> create(@Valid @RequestBody MaintenanceContractDTO dto) {
+        return Result.success(maintenanceContractService.create(dto));
     }
 
     @PutMapping

@@ -40,12 +40,13 @@ public class MaintenanceRecordService {
         return r;
     }
 
-    public void create(MaintenanceRecordDTO dto) {
+    public MaintenanceRecord create(MaintenanceRecordDTO dto) {
         MaintenanceRecord r = new MaintenanceRecord();
         BeanUtils.copyProperties(dto, r);
         if (StringUtils.hasText(dto.getRecordDate())) r.setRecordDate(LocalDate.parse(dto.getRecordDate()));
         r.setCreateBy(SecurityContext.getUserId());
         maintenanceRecordMapper.insert(r);
+        return r;
     }
 
     public void update(MaintenanceRecordDTO dto) {

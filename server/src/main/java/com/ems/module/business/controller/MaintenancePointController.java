@@ -36,9 +36,8 @@ public class MaintenancePointController {
 
     @PostMapping
     @RequirePermission("business:maintenancePoint:create")
-    public Result<Void> create(@Valid @RequestBody MaintenancePointDTO dto) {
-        maintenancePointService.create(dto);
-        return Result.success();
+    public Result<MaintenancePoint> create(@Valid @RequestBody MaintenancePointDTO dto) {
+        return Result.success(maintenancePointService.create(dto));
     }
 
     @PutMapping

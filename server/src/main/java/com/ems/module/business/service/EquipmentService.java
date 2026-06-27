@@ -40,7 +40,7 @@ public class EquipmentService {
         return e;
     }
 
-    public void create(EquipmentDTO dto) {
+    public Equipment create(EquipmentDTO dto) {
         Equipment e = new Equipment();
         BeanUtils.copyProperties(dto, e);
         if (StringUtils.hasText(dto.getCommissioningDate())) e.setCommissioningDate(LocalDate.parse(dto.getCommissioningDate()));
@@ -48,6 +48,7 @@ public class EquipmentService {
         if (!StringUtils.hasText(e.getStatus())) e.setStatus("NORMAL");
         e.setCreateBy(SecurityContext.getUserId());
         equipmentMapper.insert(e);
+        return e;
     }
 
     public void update(EquipmentDTO dto) {

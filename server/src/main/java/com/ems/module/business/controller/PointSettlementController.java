@@ -36,9 +36,8 @@ public class PointSettlementController {
 
     @PostMapping
     @RequirePermission("business:pointSettlement:create")
-    public Result<Void> create(@Valid @RequestBody PointSettlementDTO dto) {
-        pointSettlementService.create(dto);
-        return Result.success();
+    public Result<PointSettlement> create(@Valid @RequestBody PointSettlementDTO dto) {
+        return Result.success(pointSettlementService.create(dto));
     }
 
     @PutMapping

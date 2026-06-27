@@ -37,9 +37,8 @@ public class EquipmentController {
 
     @PostMapping
     @RequirePermission("business:equipment:create")
-    public Result<Void> create(@Valid @RequestBody EquipmentDTO dto) {
-        equipmentService.create(dto);
-        return Result.success();
+    public Result<Equipment> create(@Valid @RequestBody EquipmentDTO dto) {
+        return Result.success(equipmentService.create(dto));
     }
 
     @PutMapping

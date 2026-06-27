@@ -40,7 +40,7 @@ public class ProgressService {
         return p;
     }
 
-    public void create(ProgressDTO dto) {
+    public Progress create(ProgressDTO dto) {
         Progress p = new Progress();
         BeanUtils.copyProperties(dto, p);
         if (StringUtils.hasText(dto.getPlanStartDate())) p.setPlanStartDate(LocalDate.parse(dto.getPlanStartDate()));
@@ -53,6 +53,7 @@ public class ProgressService {
         if (p.getProgressPercent() == null) p.setProgressPercent(0);
         p.setCreateBy(SecurityContext.getUserId());
         progressMapper.insert(p);
+        return p;
     }
 
     public void update(ProgressDTO dto) {

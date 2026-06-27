@@ -40,7 +40,7 @@ public class MaintenanceTaskService {
         return t;
     }
 
-    public void create(MaintenanceTaskDTO dto) {
+    public MaintenanceTask create(MaintenanceTaskDTO dto) {
         MaintenanceTask t = new MaintenanceTask();
         BeanUtils.copyProperties(dto, t);
         if (StringUtils.hasText(dto.getPlanDate())) t.setPlanDate(LocalDate.parse(dto.getPlanDate()));
@@ -48,6 +48,7 @@ public class MaintenanceTaskService {
         if (!StringUtils.hasText(t.getStatus())) t.setStatus("PENDING");
         t.setCreateBy(SecurityContext.getUserId());
         maintenanceTaskMapper.insert(t);
+        return t;
     }
 
     public void update(MaintenanceTaskDTO dto) {

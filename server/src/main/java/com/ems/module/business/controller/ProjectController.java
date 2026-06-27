@@ -35,9 +35,8 @@ public class ProjectController {
 
     @PostMapping
     @RequirePermission("business:project:create")
-    public Result<Void> create(@Valid @RequestBody ProjectDTO dto) {
-        projectService.create(dto);
-        return Result.success();
+    public Result<Project> create(@Valid @RequestBody ProjectDTO dto) {
+        return Result.success(projectService.create(dto));
     }
 
     @PutMapping

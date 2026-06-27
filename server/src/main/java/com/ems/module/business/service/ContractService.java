@@ -37,7 +37,7 @@ public class ContractService {
         return c;
     }
 
-    public void create(ContractDTO dto) {
+    public Contract create(ContractDTO dto) {
         Contract c = new Contract();
         BeanUtils.copyProperties(dto, c);
         if (StringUtils.hasText(dto.getSignDate())) c.setSignDate(LocalDate.parse(dto.getSignDate()));
@@ -46,6 +46,7 @@ public class ContractService {
         if (!StringUtils.hasText(c.getStatus())) c.setStatus("DRAFT");
         c.setCreateBy(SecurityContext.getUserId());
         contractMapper.insert(c);
+        return c;
     }
 
     public void update(ContractDTO dto) {

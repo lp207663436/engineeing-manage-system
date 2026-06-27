@@ -39,7 +39,7 @@ public class AcceptanceService {
         return a;
     }
 
-    public void create(AcceptanceDTO dto) {
+    public Acceptance create(AcceptanceDTO dto) {
         Acceptance a = new Acceptance();
         BeanUtils.copyProperties(dto, a);
         if (StringUtils.hasText(dto.getAcceptDate())) a.setAcceptDate(LocalDate.parse(dto.getAcceptDate()));
@@ -49,6 +49,7 @@ public class AcceptanceService {
         if (a.getRectifyCount() == null) a.setRectifyCount(0);
         a.setCreateBy(SecurityContext.getUserId());
         acceptanceMapper.insert(a);
+        return a;
     }
 
     public void update(AcceptanceDTO dto) {

@@ -35,9 +35,8 @@ public class QuoteController {
 
     @PostMapping
     @RequirePermission("business:quote:create")
-    public Result<Void> create(@Valid @RequestBody QuoteDTO dto) {
-        quoteService.create(dto);
-        return Result.success();
+    public Result<Quote> create(@Valid @RequestBody QuoteDTO dto) {
+        return Result.success(quoteService.create(dto));
     }
 
     @PutMapping

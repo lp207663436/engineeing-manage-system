@@ -37,12 +37,13 @@ public class MaintenancePointService {
         return p;
     }
 
-    public void create(MaintenancePointDTO dto) {
+    public MaintenancePoint create(MaintenancePointDTO dto) {
         MaintenancePoint p = new MaintenancePoint();
         BeanUtils.copyProperties(dto, p);
         if (!StringUtils.hasText(p.getStatus())) p.setStatus("WAITING_QUOTE");
         p.setCreateBy(SecurityContext.getUserId());
         maintenancePointMapper.insert(p);
+        return p;
     }
 
     public void update(MaintenancePointDTO dto) {
