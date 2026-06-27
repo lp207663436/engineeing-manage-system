@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { contractApi, projectApi, type ContractDTO } from '@/api/business'
+import { contractApi, projectApi, approvalApi, type ContractDTO, type ApprovalLogDTO } from '@/api/business'
 
 interface Option { label: string; value: string }
 
@@ -118,6 +118,44 @@ const rules = {
   name: [{ required: true, message: '请输入合同名称', trigger: 'blur' }],
 }
 
+// ===== 审批相关 =====
+type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
+const progressDialogVisible = ref(false)
+const progressLoading = ref(false)
+const progressList = ref<ApprovalLogDTO[]>([])
+const progressContractName = ref('')
+
+const resultMap: Record<string, string> = {
+  APPROVED: '同意',
+  REJECTED: '拒绝',
+}
+const resultTagType: Record<string, TagType> = {
+  APPROVED: 'success',
+  REJECTED: 'danger',
+  PENDING: 'warning',
+}
+
+async function handleStartApproval(row: Contract) {
+  try {
+    await ElMessageBox.confirm(`确定对合同「${row.name}」发起审批吗?`, '提示', { type: 'warning' })
+    await approvalApi.start({ businessType: 'CONTRACT_APPROVAL', businessId: row.id! })
+    ElMessage.success('审批已发起')
+    loadData()
+  } catch {}
+}
+
+async function handleViewProgress(row: Contract) {
+  progressContractName.value = row.name || ''
+  progressDialogVisible.value = true
+  progressLoading.value = true
+  try {
+    const res: any = await approvalApi.progress('CONTRACT_APPROVAL', row.id!)
+    progressList.value = res || []
+  } finally {
+    progressLoading.value = false
+  }
+}
+
 async function loadOptions() {
   try {
     const res: any = await projectApi.page({ pageNum: 1, pageSize: 200 })
@@ -181,9 +219,17 @@ onMounted(() => {
         </el-table-column>
         <el-table-column prop="signDate" label="签订日期" min-width="120" />
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button
+              v-if="row.status !== 'APPROVED'"
+              link
+              type="warning"
+              size="small"
+              @click="handleStartApproval(row as Contract)"
+            >发起审批</el-button>
+            <el-button link type="info" size="small" @click="handleViewProgress(row as Contract)">审批进度</el-button>
             <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -254,6 +300,33 @@ onMounted(() => {
         <el-button type="primary" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 审批进度弹窗 -->
+    <el-dialog v-model="progressDialogVisible" title="审批进度" width="680px">
+      <div class="progress-title">合同:{{ progressContractName }}</div>
+      <el-table v-loading="progressLoading" :data="progressList" row-key="id" style="width: 100%">
+        <el-table-column prop="nodeOrder" label="节点序号" width="100" />
+        <el-table-column prop="approverId" label="审批人ID" min-width="140" />
+        <el-table-column label="结果" width="100">
+          <template #default="{ row }">
+            <el-tag
+              v-if="row.result"
+              :type="resultTagType[row.result] || 'info'"
+              size="small"
+              effect="light"
+            >
+              {{ resultMap[row.result] || row.result }}
+            </el-tag>
+            <el-tag v-else type="warning" size="small" effect="light">待审批</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="opinion" label="审批意见" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="approveTime" label="审批时间" min-width="160" />
+      </el-table>
+      <template #footer>
+        <el-button @click="progressDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -270,4 +343,5 @@ onMounted(() => {
 .search-bar { padding: 16px 20px 0; }
 .toolbar { margin-bottom: 16px; }
 .pagination { display: flex; justify-content: flex-end; margin-top: 16px; }
+.progress-title { font-size: 14px; font-weight: 600; color: #1F2937; margin-bottom: 12px; }
 </style>

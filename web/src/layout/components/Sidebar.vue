@@ -22,6 +22,9 @@ const menuGroups = computed(() => {
       { path: '/business/equipment', meta: { title: '设备台账', icon: 'Server' } },
       { path: '/business/progress', meta: { title: '进度管理', icon: 'ListTree' } },
       { path: '/business/acceptance', meta: { title: '验收管理', icon: 'CheckSquare' } },
+      { path: '/business/contract-payment', meta: { title: '合同收付款', icon: 'Money' } },
+      { path: '/business/approval', meta: { title: '审批中心', icon: 'Stamp' } },
+      { path: '/business/approval/flow-config', meta: { title: '审批流配置', icon: 'Settings' } },
     ]},
     { path: '/business-maintenance', meta: { title: '维护型项目', icon: 'Wrench' }, children: [
       { path: '/business/maintenance-point', meta: { title: '维护点位', icon: 'MapPin' } },

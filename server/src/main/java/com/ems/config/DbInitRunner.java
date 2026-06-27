@@ -37,6 +37,10 @@ public class DbInitRunner implements CommandLineRunner {
         createMaintenanceTaskTable();
         createMaintenanceRecordTable();
         createAttachmentTable();
+        createContractPaymentTable();
+        createApprovalFlowTable();
+        createApprovalNodeTable();
+        createApprovalLogTable();
         seedBusinessMenus();
         System.out.println("[DbInitRunner] 业务模块表初始化完成");
     }
@@ -368,6 +372,88 @@ public class DbInitRunner implements CommandLineRunner {
                 ") COMMENT '附件表'");
     }
 
+    private void createContractPaymentTable() {
+        exec("CREATE TABLE IF NOT EXISTS contract_payment (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '单号'," +
+                "contract_id BIGINT NOT NULL COMMENT '合同ID'," +
+                "type VARCHAR(20) NOT NULL COMMENT 'RECEIVABLE应收/PAYABLE应付'," +
+                "plan_date DATE COMMENT '计划日期'," +
+                "plan_amount DECIMAL(14,2) COMMENT '计划金额'," +
+                "actual_amount DECIMAL(14,2) COMMENT '实际金额'," +
+                "actual_date DATE COMMENT '实际日期'," +
+                "invoice_no VARCHAR(100) COMMENT '发票号'," +
+                "status VARCHAR(20) DEFAULT 'PENDING' COMMENT 'PENDING/RECEIVED/OVERDUE'," +
+                "remark VARCHAR(500)," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_contract (contract_id)," +
+                "INDEX idx_type (type)," +
+                "INDEX idx_status (status)" +
+                ") COMMENT '合同收付款表'");
+    }
+
+    private void createApprovalFlowTable() {
+        exec("CREATE TABLE IF NOT EXISTS approval_flow (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '流程编码'," +
+                "name VARCHAR(200) NOT NULL COMMENT '流程名称'," +
+                "business_type VARCHAR(30) NOT NULL COMMENT 'CONTRACT_APPROVAL/QUOTE_APPROVAL'," +
+                "enabled INT DEFAULT 1 COMMENT '1启用 0禁用'," +
+                "remark VARCHAR(500)," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_business (business_type)" +
+                ") COMMENT '审批流定义表'");
+    }
+
+    private void createApprovalNodeTable() {
+        exec("CREATE TABLE IF NOT EXISTS approval_node (" +
+                "id BIGINT PRIMARY KEY," +
+                "flow_id BIGINT NOT NULL COMMENT '流程ID'," +
+                "node_order INT NOT NULL COMMENT '节点顺序'," +
+                "node_name VARCHAR(200) NOT NULL COMMENT '节点名称'," +
+                "approver_role_id BIGINT COMMENT '审批角色ID'," +
+                "amount_threshold DECIMAL(14,2) COMMENT '金额阈值(合同金额>=阈值才走该节点)'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "INDEX idx_flow (flow_id)," +
+                "INDEX idx_order (flow_id, node_order)" +
+                ") COMMENT '审批节点表'");
+    }
+
+    private void createApprovalLogTable() {
+        exec("CREATE TABLE IF NOT EXISTS approval_log (" +
+                "id BIGINT PRIMARY KEY," +
+                "flow_id BIGINT NOT NULL COMMENT '流程ID'," +
+                "business_type VARCHAR(30) NOT NULL COMMENT 'CONTRACT_APPROVAL/QUOTE_APPROVAL'," +
+                "business_id BIGINT NOT NULL COMMENT '业务ID'," +
+                "node_order INT NOT NULL COMMENT '当前节点序号'," +
+                "approver_id BIGINT COMMENT '审批人ID'," +
+                "result VARCHAR(20) COMMENT 'APPROVED/REJECTED(null=待审批)'," +
+                "opinion VARCHAR(500) COMMENT '审批意见'," +
+                "approve_time DATETIME COMMENT '审批时间'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "INDEX idx_business (business_type, business_id)," +
+                "INDEX idx_approver (approver_id)," +
+                "INDEX idx_result (result)" +
+                ") COMMENT '审批记录表'");
+        // 补充 contract/quote 表 approval_status 列(已有表兼容)
+        try { exec("ALTER TABLE contract ADD COLUMN approval_status VARCHAR(20) DEFAULT 'NONE' COMMENT 'NONE/PENDING/APPROVED/REJECTED' AFTER status"); } catch (Exception ignore) {}
+        try { exec("ALTER TABLE quote ADD COLUMN approval_status VARCHAR(20) DEFAULT 'NONE' COMMENT 'NONE/PENDING/APPROVED/REJECTED' AFTER status"); } catch (Exception ignore) {}
+    }
+
     private void seedBusinessMenus() {
         // 目录与菜单(INSERT IGNORE 幂等)
         String[][] menus = {
@@ -425,7 +511,15 @@ public class DbInitRunner implements CommandLineRunner {
                 {"2141", "214", "记录新增", "3", "business:maintenanceRecord:create", "", "", "1"},
                 {"2142", "214", "记录编辑", "3", "business:maintenanceRecord:update", "", "", "2"},
                 {"2143", "214", "记录删除", "3", "business:maintenanceRecord:delete", "", "", "3"},
-                {"2151", "215", "查询", "3", "business:dashboard:list", "", "", "1"}
+                {"2151", "215", "查询", "3", "business:dashboard:list", "", "", "1"},
+                {"216", "200", "合同收付款", "2", "business:contractPayment:list", "/business/contract-payment", "Money", "7"},
+                {"2161", "216", "新增", "3", "business:contractPayment:create", "", "", "1"},
+                {"2162", "216", "编辑", "3", "business:contractPayment:update", "", "", "2"},
+                {"2163", "216", "删除", "3", "business:contractPayment:delete", "", "", "3"},
+                {"217", "200", "审批中心", "2", "business:approval:list", "/business/approval", "Stamp", "8"},
+                {"2171", "217", "发起审批", "3", "business:approval:start", "", "", "1"},
+                {"2172", "217", "审批操作", "3", "business:approval:approve", "", "", "2"},
+                {"218", "200", "审批流配置", "2", "business:approval:config", "/business/approval/flow-config", "Setting", "9"}
         };
         for (String[] m : menus) {
             jdbc.update("INSERT IGNORE INTO sys_menu (id, parent_id, name, type, permission, path, icon, sort, status) " +
@@ -438,6 +532,6 @@ public class DbInitRunner implements CommandLineRunner {
         }
         // 给 admin(role_id=1)分配权限,幂等
         jdbc.update("INSERT IGNORE INTO sys_role_menu (role_id, menu_id) " +
-                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2151");
+                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2181");
     }
 }

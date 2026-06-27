@@ -22,5 +22,6 @@ public class Quote extends BaseEntity {
     private String customerName;
     private Integer version;
     private String status;
+    private String approvalStatus;
     private String summary;
 }

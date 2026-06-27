@@ -145,6 +145,24 @@ export const staticRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/business/attachment/index.vue'),
         meta: { title: '附件管理', icon: 'Paperclip' },
       },
+      {
+        path: 'contract-payment',
+        name: 'BusinessContractPayment',
+        component: () => import('@/views/business/contract-payment/index.vue'),
+        meta: { title: '合同收付款', icon: 'Banknote' },
+      },
+      {
+        path: 'approval',
+        name: 'BusinessApproval',
+        component: () => import('@/views/business/approval/index.vue'),
+        meta: { title: '审批中心', icon: 'ClipboardCheck' },
+      },
+      {
+        path: 'approval/flow-config',
+        name: 'BusinessApprovalFlowConfig',
+        component: () => import('@/views/business/approval/flow-config.vue'),
+        meta: { title: '审批流配置', icon: 'Workflow' },
+      },
     ],
   },
   {

@@ -353,3 +353,82 @@ export const dashboardApi = {
   projectDashboard: (projectId: string) => request.get(`/business/dashboard/settlement/project/${projectId}`),
   projectDetail: (projectId: string) => request.get(`/business/dashboard/settlement/project/${projectId}/detail`),
 }
+
+// ===== 合同收付款 =====
+export interface ContractPaymentDTO {
+  id?: string
+  code: string
+  contractId?: string
+  type?: string
+  planDate?: string
+  planAmount?: number
+  actualAmount?: number
+  actualDate?: string
+  invoiceNo?: string
+  status?: string
+  remark?: string
+  createTime?: string
+}
+
+export const contractPaymentApi = {
+  page: (params: { pageNum: number; pageSize: number; code?: string; contractId?: string; type?: string; status?: string }) =>
+    request.get('/business/contract-payment/page', { params }),
+  get: (id: string) => request.get(`/business/contract-payment/${id}`),
+  create: (data: ContractPaymentDTO) => request.post('/business/contract-payment', data),
+  update: (data: ContractPaymentDTO) => request.put('/business/contract-payment', data),
+  delete: (id: string) => request.delete(`/business/contract-payment/${id}`),
+  recordActual: (id: string, data: { actualAmount: number; actualDate: string; invoiceNo?: string }) =>
+    request.put(`/business/contract-payment/${id}/actual`, data),
+  dashboard: (contractId: string) => request.get('/business/contract-payment/dashboard', { params: { contractId } }),
+}
+
+// ===== 审批流 =====
+export interface ApprovalLogDTO {
+  id?: string
+  flowId?: string
+  businessType?: string
+  businessId?: string
+  nodeOrder?: number
+  approverId?: string
+  result?: string
+  opinion?: string
+  approveTime?: string
+  createTime?: string
+}
+
+export interface ApprovalFlowDTO {
+  id?: string
+  code: string
+  name: string
+  businessType?: string
+  enabled?: number
+  remark?: string
+}
+
+export interface ApprovalNodeDTO {
+  id?: string
+  flowId?: string
+  nodeOrder: number
+  nodeName: string
+  approverRoleId?: string
+  amountThreshold?: number
+}
+
+export const approvalApi = {
+  start: (data: { businessType: string; businessId: string }) =>
+    request.post('/business/approval/start', data),
+  approve: (logId: string, data: { result: string; opinion?: string }) =>
+    request.post(`/business/approval/${logId}/approve`, data),
+  pending: () => request.get('/business/approval/pending'),
+  history: () => request.get('/business/approval/history'),
+  page: (params: { pageNum: number; pageSize: number; businessType?: string; businessId?: string; result?: string }) =>
+    request.get('/business/approval/page', { params }),
+  progress: (businessType: string, businessId: string) =>
+    request.get('/business/approval/progress', { params: { businessType, businessId } }),
+  flowList: () => request.get('/business/approval/flow/list'),
+  flowSave: (data: ApprovalFlowDTO) => request.post('/business/approval/flow', data),
+  flowDelete: (id: string) => request.delete(`/business/approval/flow/${id}`),
+  flowNodes: (flowId: string) => request.get(`/business/approval/flow/${flowId}/nodes`),
+  flowSaveNodes: (flowId: string, nodes: ApprovalNodeDTO[]) =>
+    request.post(`/business/approval/flow/${flowId}/nodes`, nodes),
+}

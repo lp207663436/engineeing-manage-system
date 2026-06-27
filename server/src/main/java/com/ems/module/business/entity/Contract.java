@@ -21,6 +21,7 @@ public class Contract extends BaseEntity {
     private String paymentMethod;
     private Long projectId;
     private String status;
+    private String approvalStatus;
     private LocalDate startDate;
     private LocalDate endDate;
     private String remark;
