@@ -20,6 +20,20 @@ const menuGroups = computed(() => {
       { path: '/business/contract', meta: { title: '合同管理', icon: 'FileText' } },
       { path: '/business/quote', meta: { title: '报价管理', icon: 'FileSpreadsheet' } },
       { path: '/business/equipment', meta: { title: '设备台账', icon: 'Server' } },
+      { path: '/business/progress', meta: { title: '进度管理', icon: 'ListTree' } },
+      { path: '/business/acceptance', meta: { title: '验收管理', icon: 'CheckSquare' } },
+    ]},
+    { path: '/business-maintenance', meta: { title: '维护型项目', icon: 'Wrench' }, children: [
+      { path: '/business/maintenance-point', meta: { title: '维护点位', icon: 'MapPin' } },
+      { path: '/business/maintenance-contract', meta: { title: '维保主合同', icon: 'FileSignature' } },
+      { path: '/business/point-settlement', meta: { title: '点位结算', icon: 'Receipt' } },
+      { path: '/business/quarterly-settlement', meta: { title: '季度结算', icon: 'CalendarClock' } },
+      { path: '/business/maintenance-task', meta: { title: '维保任务', icon: 'Wrench' } },
+      { path: '/business/maintenance-record', meta: { title: '维保记录', icon: 'ClipboardList' } },
+    ]},
+    { path: '/business-dashboard', meta: { title: '运营看板', icon: 'BarChart3' }, children: [
+      { path: '/business/dashboard', meta: { title: '结算看板', icon: 'BarChart3' } },
+      { path: '/business/attachment', meta: { title: '附件管理', icon: 'Paperclip' } },
     ]},
     { path: '/system', meta: { title: '系统管理', icon: 'Settings' }, children: [
       { path: '/system/user', meta: { title: '用户管理', icon: 'User' } },
