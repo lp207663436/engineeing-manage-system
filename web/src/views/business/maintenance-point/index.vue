@@ -111,6 +111,8 @@ async function handleDelete(row: MaintenancePoint) {
 const rules = {
   code: [{ required: true, message: '请输入点位编号', trigger: 'blur' }],
   name: [{ required: true, message: '请输入点位名称', trigger: 'blur' }],
+  projectId: [{ required: true, message: '请选择所属项目', trigger: 'change' }],
+  managerId: [{ required: true, message: '请选择负责人', trigger: 'change' }],
 }
 
 async function loadOptions() {
@@ -207,7 +209,7 @@ onMounted(() => {
         <el-form-item label="点位名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入点位名称" />
         </el-form-item>
-        <el-form-item label="项目">
+        <el-form-item label="项目" prop="projectId">
           <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
             <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
@@ -218,7 +220,7 @@ onMounted(() => {
         <el-form-item label="设备清单">
           <el-input v-model="form.equipmentList" type="textarea" :rows="3" placeholder="设备清单" />
         </el-form-item>
-        <el-form-item label="负责人">
+        <el-form-item label="负责人" prop="managerId">
           <el-select v-model="form.managerId" placeholder="请选择负责人" clearable filterable style="width: 100%">
             <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>

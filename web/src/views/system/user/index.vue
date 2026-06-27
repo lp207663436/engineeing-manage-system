@@ -12,7 +12,7 @@ interface SysUser extends SysUserDTO {
 const loading = ref(false)
 const tableData = ref<SysUser[]>([])
 const total = ref(0)
-const query = reactive({ pageNum: 1, pageSize: 10, name: '', deptId: undefined as number | undefined })
+const query = reactive({ pageNum: 1, pageSize: 10, name: '', deptId: undefined as string | undefined })
 
 const deptTree = ref<any[]>([])
 const dialogVisible = ref(false)
@@ -24,9 +24,9 @@ const form = reactive<SysUserDTO>({
 const isEdit = ref(false)
 
 const roleDialogVisible = ref(false)
-const currentUserId = ref<number>(0)
+const currentUserId = ref<string>('')
 const roleList = ref<any[]>([])
-const selectedRoleIds = ref<number[]>([])
+const selectedRoleIds = ref<string[]>([])
 
 async function loadData() {
   loading.value = true
@@ -98,7 +98,7 @@ async function handleDelete(row: SysUser) {
 async function handleAssignRoles(row: SysUser) {
   currentUserId.value = row.id!
   roleList.value = await roleApi.list()
-  const ids: number[] = await userApi.getRoleIds(currentUserId.value)
+  const ids: string[] = await userApi.getRoleIds(currentUserId.value)
   selectedRoleIds.value = ids
   roleDialogVisible.value = true
 }
@@ -112,7 +112,11 @@ async function handleAssignSubmit() {
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' },
+  ],
+  deptId: [{ required: true, message: '请选择部门', trigger: 'change' }],
 }
 
 onMounted(() => {
@@ -200,7 +204,7 @@ onMounted(() => {
         <el-form-item v-if="!isEdit" label="密码" prop="password">
           <el-input v-model="form.password" type="password" show-password placeholder="请输入密码" />
         </el-form-item>
-        <el-form-item label="部门">
+        <el-form-item label="部门" prop="deptId">
           <el-tree-select
             v-model="form.deptId"
             :data="deptTree"

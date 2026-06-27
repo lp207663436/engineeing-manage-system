@@ -54,7 +54,16 @@ public class AttachmentController {
     @GetMapping("/{id}")
     @RequirePermission("business:attachment:list")
     public Result<Attachment> get(@PathVariable Long id) {
-        return Result.success(attachmentService.get(id));
+        Attachment attachment = attachmentService.get(id);
+        if (attachment == null) {
+            throw new BusinessException("附件不存在");
+        }
+        // 业务权限校验:超管或附件创建人本人可访问(最低限度校验,完整数据权限由列表接口 @DataScope 保证)
+        Long currentUserId = SecurityContext.getUserId();
+        if (currentUserId == null || (currentUserId != 1L && !currentUserId.equals(attachment.getCreateBy()))) {
+            throw new BusinessException(403, "无权访问该附件");
+        }
+        return Result.success(attachment);
     }
 
     @PostMapping("/upload")
@@ -97,9 +106,22 @@ public class AttachmentController {
     @RequirePermission("business:attachment:list")
     public ResponseEntity<Resource> download(@PathVariable Long id) throws IOException {
         Attachment attachment = attachmentService.get(id);
+        if (attachment == null) {
+            throw new BusinessException("附件不存在");
+        }
+        // 业务权限校验:超管或附件创建人本人可访问(最低限度校验,完整数据权限由列表接口 @DataScope 保证)
+        Long currentUserId = SecurityContext.getUserId();
+        if (currentUserId == null || (currentUserId != 1L && !currentUserId.equals(attachment.getCreateBy()))) {
+            throw new BusinessException(403, "无权访问该附件");
+        }
         String relative = attachment.getFilePath().startsWith("/")
                 ? attachment.getFilePath().substring(1) : attachment.getFilePath();
-        Path filePath = Paths.get(System.getProperty("user.dir"), relative);
+        // 路径遍历修复:规范化后校验是否在 uploads 基目录下
+        Path base = Paths.get(System.getProperty("user.dir"), "uploads").normalize().toAbsolutePath();
+        Path filePath = Paths.get(System.getProperty("user.dir"), relative).normalize().toAbsolutePath();
+        if (!filePath.startsWith(base)) {
+            throw new BusinessException(403, "非法文件路径");
+        }
         if (!Files.exists(filePath)) {
             throw new BusinessException("文件不存在");
         }

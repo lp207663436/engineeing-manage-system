@@ -18,6 +18,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Service
@@ -72,13 +73,31 @@ public class PointSettlementService {
 
     public void update(PointSettlementDTO dto) {
         PointSettlement existing = get(dto.getId());
-        BeanUtils.copyProperties(dto, existing);
+        BeanUtils.copyProperties(dto, existing, "status", "receivedAmount", "receivedDate", "invoiceNo", "id", "createTime", "createBy");
         if (StringUtils.hasText(dto.getReceivedDate())) existing.setReceivedDate(LocalDate.parse(dto.getReceivedDate()));
         pointSettlementMapper.updateById(existing);
     }
 
     public void delete(Long id) {
-        get(id);
+        PointSettlement existing = get(id);
+        if ("RECEIVED".equals(existing.getStatus())) throw new BusinessException("已收款的结算单不可删除");
         pointSettlementMapper.deleteById(id);
+    }
+
+    /**
+     * 登记实收:回款登记,状态→RECEIVED
+     */
+    public void receive(Long id, BigDecimal receivedAmount, String receivedDate, String invoiceNo) {
+        PointSettlement existing = get(id);
+        if ("RECEIVED".equals(existing.getStatus())) throw new BusinessException("已收款,不可重复登记");
+        if (receivedAmount == null || receivedAmount.compareTo(BigDecimal.ZERO) <= 0)
+            throw new BusinessException("实收金额必须大于0");
+        if (existing.getAmount() != null && receivedAmount.compareTo(existing.getAmount()) > 0)
+            throw new BusinessException("实收金额不能超过应收金额");
+        existing.setReceivedAmount(receivedAmount);
+        existing.setReceivedDate(receivedDate != null ? LocalDate.parse(receivedDate) : null);
+        existing.setInvoiceNo(invoiceNo);
+        existing.setStatus("RECEIVED");
+        pointSettlementMapper.updateById(existing);
     }
 }

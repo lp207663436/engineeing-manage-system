@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import * as LucideIcons from 'lucide-vue-next'
 
-const props = defineProps<{ collapsed: boolean }>()
+const props = defineProps<{ collapsed: boolean; isMobile?: boolean; mobileOpen?: boolean }>()
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -66,7 +66,7 @@ const activePath = computed(() => route.path)
 </script>
 
 <template>
-  <aside class="sidebar" :class="{ 'is-collapsed': props.collapsed }">
+  <aside class="sidebar" :class="{ 'is-collapsed': props.collapsed, 'mobile-open': props.isMobile && props.mobileOpen }">
     <div class="sidebar-logo">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4F6BED" stroke-width="2">
         <path d="M12 2L2 7l10 5 10-5-10-5z" />
@@ -117,9 +117,15 @@ const activePath = computed(() => route.path)
   border-right: 1px solid #E5E7EB;
   display: flex;
   flex-direction: column;
-  transition: width 0.2s ease;
+  transition: width 0.2s ease, transform 0.3s ease;
   z-index: 100;
   &.is-collapsed { width: 64px; }
+}
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    &.mobile-open { transform: translateX(0); }
+  }
 }
 .sidebar-logo {
   height: 56px;

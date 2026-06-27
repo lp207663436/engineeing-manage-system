@@ -222,10 +222,17 @@ const rules = {
   contractId: [{ required: true, message: '请选择合同', trigger: 'change' }],
   type: [{ required: true, message: '请选择类型', trigger: 'change' }],
   planDate: [{ required: true, message: '请选择计划日期', trigger: 'change' }],
+  planAmount: [
+    { required: true, message: '请输入计划金额', trigger: 'blur' },
+    { type: 'number', min: 0.01, message: '计划金额必须大于0', trigger: 'blur' },
+  ],
 }
 
 const actualRules = {
-  actualAmount: [{ required: true, message: '请输入实际金额', trigger: 'blur' }],
+  actualAmount: [
+    { required: true, message: '请输入实际金额', trigger: 'blur' },
+    { type: 'number', min: 0.01, message: '实际金额必须大于0', trigger: 'blur' },
+  ],
   actualDate: [{ required: true, message: '请选择实际日期', trigger: 'change' }],
 }
 
@@ -402,10 +409,10 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="计划金额">
+            <el-form-item label="计划金额" prop="planAmount">
               <el-input-number
                 v-model="form.planAmount"
-                :min="0"
+                :min="0.01"
                 :precision="2"
                 controls-position="right"
                 style="width: 100%"
@@ -432,7 +439,7 @@ onMounted(async () => {
         <el-form-item label="实际金额" prop="actualAmount">
           <el-input-number
             v-model="actualForm.actualAmount"
-            :min="0"
+            :min="0.01"
             :precision="2"
             controls-position="right"
             style="width: 100%"

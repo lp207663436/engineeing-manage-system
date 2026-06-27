@@ -24,6 +24,8 @@ const isEdit = ref(false)
 const rules = {
   code: [{ required: true, message: '请输入供应商编号', trigger: 'blur' }],
   name: [{ required: true, message: '请输入供应商名称', trigger: 'blur' }],
+  contactPhone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }],
+  contactEmail: [{ type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }],
 }
 
 async function loadData() {
@@ -173,12 +175,12 @@ onMounted(() => {
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="联系电话">
+            <el-form-item label="联系电话" prop="contactPhone">
               <el-input v-model="form.contactPhone" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="联系邮箱">
+            <el-form-item label="联系邮箱" prop="contactEmail">
               <el-input v-model="form.contactEmail" />
             </el-form-item>
           </el-col>

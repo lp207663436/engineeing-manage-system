@@ -11,6 +11,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/business/point-settlement")
 @RequiredArgsConstructor
@@ -46,6 +49,16 @@ public class PointSettlementController {
     @RequirePermission("business:pointSettlement:update")
     public Result<Void> update(@Valid @RequestBody PointSettlementDTO dto) {
         pointSettlementService.update(dto);
+        return Result.success();
+    }
+
+    @PutMapping("/{id}/receive")
+    @RequirePermission("business:pointSettlement:update")
+    public Result<Void> receive(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        pointSettlementService.receive(id,
+            new BigDecimal(body.get("receivedAmount").toString()),
+            (String) body.get("receivedDate"),
+            (String) body.get("invoiceNo"));
         return Result.success();
     }
 

@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { contractChangeApi, contractApi, type ContractChangeDTO } from '@/api/business'
 
 interface Option { label: string; value: string }
+type ContractChange = ContractChangeDTO
 interface Row extends ContractChangeDTO {}
 
 const contractOptions = ref<Option[]>([])
@@ -140,6 +141,15 @@ async function handleAudit(row: Row, status: 'APPROVED' | 'REJECTED') {
   } catch {}
 }
 
+async function handleSubmitAudit(row: ContractChange) {
+  try {
+    await ElMessageBox.confirm(`确定提交变更「${row.changeDesc}」审核吗?`, '提示', { type: 'warning' })
+    await contractChangeApi.update({ ...row, status: 'PENDING' })
+    ElMessage.success('已提交审核')
+    loadData()
+  } catch {}
+}
+
 onMounted(() => {
   loadContracts()
   loadData()
@@ -198,6 +208,7 @@ onMounted(() => {
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
         <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
+            <el-button v-if="row.status === 'NONE'" link type="warning" size="small" @click="handleSubmitAudit(row as Row)">提交审核</el-button>
             <el-button v-if="row.status === 'PENDING'" link type="success" size="small" @click="handleAudit(row as Row, 'APPROVED')">通过</el-button>
             <el-button v-if="row.status === 'PENDING'" link type="danger" size="small" @click="handleAudit(row as Row, 'REJECTED')">驳回</el-button>
             <el-button link type="primary" size="small" @click="handleEdit(row as Row)">编辑</el-button>

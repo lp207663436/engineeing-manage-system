@@ -114,6 +114,7 @@ async function handleDelete(row: Equipment) {
 const rules = {
   code: [{ required: true, message: '请输入设备编号', trigger: 'blur' }],
   name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
+  category: [{ required: true, message: '请选择设备分类', trigger: 'change' }],
 }
 
 async function loadOptions() {
@@ -231,7 +232,7 @@ onMounted(() => {
         <el-form-item label="序列号">
           <el-input v-model="form.serialNumber" placeholder="序列号" />
         </el-form-item>
-        <el-form-item label="分类">
+        <el-form-item label="分类" prop="category">
           <el-select v-model="form.category" placeholder="请选择" style="width: 100%">
             <el-option v-for="c in categoryOptions" :key="c" :label="c" :value="c" />
           </el-select>

@@ -71,6 +71,18 @@ async function handleDelete(row: any) {
 const rules = {
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
   type: [{ required: true, message: '请选择类型', trigger: 'change' }],
+  permission: [{
+    validator: (_r: any, v: any, cb: any) => {
+      if (form.type === 3 && !v) cb(new Error('按钮类型必须填写权限标识'))
+      else cb()
+    }, trigger: 'blur',
+  }],
+  path: [{
+    validator: (_r: any, v: any, cb: any) => {
+      if ((form.type === 1 || form.type === 2) && !v) cb(new Error('目录/菜单类型必须填写路径'))
+      else cb()
+    }, trigger: 'blur',
+  }],
 }
 
 onMounted(loadData)
@@ -131,8 +143,8 @@ onMounted(loadData)
         </el-form-item>
         <el-form-item label="名称" prop="name"><el-input v-model="form.name" placeholder="请输入名称" /></el-form-item>
         <el-form-item label="图标"><el-input v-model="form.icon" placeholder="Lucide 图标名,如 User" /></el-form-item>
-        <el-form-item label="权限标识"><el-input v-model="form.permission" placeholder="如 system:user:list" /></el-form-item>
-        <el-form-item label="路径"><el-input v-model="form.path" placeholder="如 /system/user" /></el-form-item>
+        <el-form-item label="权限标识" prop="permission"><el-input v-model="form.permission" placeholder="如 system:user:list" /></el-form-item>
+        <el-form-item label="路径" prop="path"><el-input v-model="form.path" placeholder="如 /system/user" /></el-form-item>
         <el-form-item label="排序"><el-input-number v-model="form.sort" :min="0" /></el-form-item>
         <el-form-item label="状态">
           <el-radio-group v-model="form.status">

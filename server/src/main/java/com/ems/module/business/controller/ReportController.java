@@ -1,5 +1,8 @@
 package com.ems.module.business.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ems.common.datascope.DataScope;
+import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.excel.ExcelExportUtil;
 import com.ems.module.business.dto.ContractPaymentReportVO;
 import com.ems.module.business.dto.MaintenanceWorkloadReportVO;
@@ -42,8 +45,11 @@ public class ReportController {
 
     @GetMapping("/export/project")
     @RequirePermission("business:report:export")
+    @DataScope
     public void exportProject(HttpServletResponse response) {
-        List<Project> list = projectMapper.selectList(null);
+        LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
+        DataScopeHelper.applyTo(wrapper);
+        List<Project> list = projectMapper.selectList(wrapper);
         List<ProjectReportVO> data = new ArrayList<>(list.size());
         for (Project p : list) {
             ProjectReportVO vo = new ProjectReportVO();
@@ -61,8 +67,11 @@ public class ReportController {
 
     @GetMapping("/export/contract-payment")
     @RequirePermission("business:report:export")
+    @DataScope
     public void exportContractPayment(HttpServletResponse response) {
-        List<ContractPayment> list = contractPaymentMapper.selectList(null);
+        LambdaQueryWrapper<ContractPayment> wrapper = new LambdaQueryWrapper<>();
+        DataScopeHelper.applyTo(wrapper);
+        List<ContractPayment> list = contractPaymentMapper.selectList(wrapper);
         List<ContractPaymentReportVO> data = new ArrayList<>(list.size());
         for (ContractPayment c : list) {
             ContractPaymentReportVO vo = new ContractPaymentReportVO();
@@ -81,8 +90,11 @@ public class ReportController {
 
     @GetMapping("/export/progress")
     @RequirePermission("business:report:export")
+    @DataScope
     public void exportProgress(HttpServletResponse response) {
-        List<Progress> list = progressMapper.selectList(null);
+        LambdaQueryWrapper<Progress> wrapper = new LambdaQueryWrapper<>();
+        DataScopeHelper.applyTo(wrapper);
+        List<Progress> list = progressMapper.selectList(wrapper);
         List<ProgressReportVO> data = new ArrayList<>(list.size());
         for (Progress p : list) {
             ProgressReportVO vo = new ProgressReportVO();
@@ -102,8 +114,11 @@ public class ReportController {
 
     @GetMapping("/export/maintenance-workload")
     @RequirePermission("business:report:export")
+    @DataScope
     public void exportMaintenanceWorkload(HttpServletResponse response) {
-        List<MaintenanceTask> list = maintenanceTaskMapper.selectList(null);
+        LambdaQueryWrapper<MaintenanceTask> wrapper = new LambdaQueryWrapper<>();
+        DataScopeHelper.applyTo(wrapper);
+        List<MaintenanceTask> list = maintenanceTaskMapper.selectList(wrapper);
         List<MaintenanceWorkloadReportVO> data = new ArrayList<>(list.size());
         for (MaintenanceTask t : list) {
             MaintenanceWorkloadReportVO vo = new MaintenanceWorkloadReportVO();
@@ -121,8 +136,11 @@ public class ReportController {
 
     @GetMapping("/export/settlement")
     @RequirePermission("business:report:export")
+    @DataScope
     public void exportSettlement(HttpServletResponse response) {
-        List<QuarterlySettlement> list = quarterlySettlementMapper.selectList(null);
+        LambdaQueryWrapper<QuarterlySettlement> wrapper = new LambdaQueryWrapper<>();
+        DataScopeHelper.applyTo(wrapper);
+        List<QuarterlySettlement> list = quarterlySettlementMapper.selectList(wrapper);
         List<SettlementReportVO> data = new ArrayList<>(list.size());
         for (QuarterlySettlement s : list) {
             SettlementReportVO vo = new SettlementReportVO();

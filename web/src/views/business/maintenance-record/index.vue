@@ -155,6 +155,11 @@ async function handleDelete(row: Row) {
 
 const rules = {
   code: [{ required: true, message: '请输入记录编号', trigger: 'blur' }],
+  recordType: [{ required: true, message: '请选择记录类型', trigger: 'change' }],
+  recordDate: [{ required: true, message: '请选择记录日期', trigger: 'change' }],
+  recorderId: [{ required: true, message: '请选择记录人', trigger: 'change' }],
+  content: [{ required: true, message: '请输入记录内容', trigger: 'blur' }],
+  projectId: [{ required: true, message: '请选择所属项目', trigger: 'change' }],
 }
 
 onMounted(() => {
@@ -247,7 +252,7 @@ onMounted(() => {
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="所属项目">
+            <el-form-item label="所属项目" prop="projectId">
               <el-select v-model="form.projectId" placeholder="选择项目" filterable clearable style="width: 100%">
                 <el-option v-for="p in projectOptions" :key="p.id" :label="p.name" :value="p.id!" />
               </el-select>
@@ -270,7 +275,7 @@ onMounted(() => {
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="记录类型">
+            <el-form-item label="记录类型" prop="recordType">
               <el-select v-model="form.recordType" style="width: 100%">
                 <el-option v-for="(label, key) in recordTypeMap" :key="key" :label="label" :value="key" />
               </el-select>
@@ -279,19 +284,19 @@ onMounted(() => {
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="记录日期">
+            <el-form-item label="记录日期" prop="recordDate">
               <el-date-picker v-model="form.recordDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="记录人">
+            <el-form-item label="记录人" prop="recorderId">
               <el-select v-model="form.recorderId" placeholder="请选择记录人" clearable filterable style="width: 100%">
                 <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="记录内容">
+        <el-form-item label="记录内容" prop="content">
           <el-input v-model="form.content" type="textarea" :rows="4" placeholder="记录内容" />
         </el-form-item>
         <el-form-item label="处理结果">

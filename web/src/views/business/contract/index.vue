@@ -116,6 +116,14 @@ function formatAmount(v: number) {
 const rules = {
   code: [{ required: true, message: '请输入合同编号', trigger: 'blur' }],
   name: [{ required: true, message: '请输入合同名称', trigger: 'blur' }],
+  partyA: [{ required: true, message: '请输入甲方名称', trigger: 'blur' }],
+  partyB: [{ required: true, message: '请输入乙方名称', trigger: 'blur' }],
+  amount: [
+    { required: true, message: '请输入合同金额', trigger: 'blur' },
+    { type: 'number', min: 0.01, message: '合同金额必须大于0', trigger: 'blur' },
+  ],
+  signDate: [{ required: true, message: '请选择签订日期', trigger: 'change' }],
+  projectId: [{ required: true, message: '请选择关联项目', trigger: 'change' }],
 }
 
 // ===== 审批相关 =====
@@ -255,19 +263,19 @@ onMounted(() => {
         <el-form-item label="合同名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入合同名称" />
         </el-form-item>
-        <el-form-item label="项目">
+        <el-form-item label="项目" prop="projectId">
           <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
             <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="甲方">
+        <el-form-item label="甲方" prop="partyA">
           <el-input v-model="form.partyA" placeholder="甲方名称" />
         </el-form-item>
-        <el-form-item label="乙方">
+        <el-form-item label="乙方" prop="partyB">
           <el-input v-model="form.partyB" placeholder="乙方名称" />
         </el-form-item>
-        <el-form-item label="合同金额">
-          <el-input-number v-model="form.amount" :min="0" :precision="2" controls-position="right" style="width: 100%" />
+        <el-form-item label="合同金额" prop="amount">
+          <el-input-number v-model="form.amount" :min="0.01" :precision="2" controls-position="right" style="width: 100%" />
         </el-form-item>
         <el-form-item label="合同类别">
           <el-select v-model="form.category" style="width: 100%">
@@ -277,7 +285,7 @@ onMounted(() => {
         <el-form-item label="付款方式">
           <el-input v-model="form.paymentMethod" placeholder="如:按进度付款" />
         </el-form-item>
-        <el-form-item label="签订日期">
+        <el-form-item label="签订日期" prop="signDate">
           <el-date-picker v-model="form.signDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="生效日期">

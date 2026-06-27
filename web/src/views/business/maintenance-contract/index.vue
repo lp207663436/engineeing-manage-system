@@ -132,12 +132,25 @@ const validatePeriodMonths = (rule: any, value: number, callback: any) => {
   }
 }
 
+const validateTotalAmount = (_rule: any, value: number, callback: any) => {
+  if (value == null || value <= 0) {
+    callback(new Error('合同总金额必须大于0'))
+  } else {
+    callback()
+  }
+}
+
 const rules: FormRules = {
   code: [{ required: true, message: '请输入合同编号', trigger: 'blur' }],
   name: [{ required: true, message: '请输入合同名称', trigger: 'blur' }],
   effectiveDate: [{ required: true, message: '请选择生效日期', trigger: 'change' }],
-  totalAmount: [{ required: true, message: '请输入合同总金额', trigger: 'blur' }],
+  totalAmount: [{ required: true, validator: validateTotalAmount, trigger: 'blur' }],
   periodMonths: [{ required: true, validator: validatePeriodMonths, trigger: 'blur' }],
+  projectId: [{ required: true, message: '请选择所属项目', trigger: 'change' }],
+  partyA: [{ required: true, message: '请输入甲方名称', trigger: 'blur' }],
+  partyB: [{ required: true, message: '请输入乙方名称', trigger: 'blur' }],
+  signDate: [{ required: true, message: '请选择签订日期', trigger: 'change' }],
+  responseSla: [{ required: true, message: '请输入响应SLA', trigger: 'blur' }],
 }
 
 async function loadOptions() {
@@ -239,31 +252,31 @@ onMounted(() => {
         <el-form-item label="合同名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入合同名称" />
         </el-form-item>
-        <el-form-item label="项目">
+        <el-form-item label="项目" prop="projectId">
           <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
             <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="甲方">
+        <el-form-item label="甲方" prop="partyA">
           <el-input v-model="form.partyA" placeholder="甲方名称" />
         </el-form-item>
-        <el-form-item label="乙方">
+        <el-form-item label="乙方" prop="partyB">
           <el-input v-model="form.partyB" placeholder="乙方名称" />
         </el-form-item>
-        <el-form-item label="签订日期">
+        <el-form-item label="签订日期" prop="signDate">
           <el-date-picker v-model="form.signDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="生效日期" prop="effectiveDate">
           <el-date-picker v-model="form.effectiveDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="合同总金额" prop="totalAmount">
-          <el-input-number v-model="form.totalAmount" :min="0" :precision="2" controls-position="right" style="width: 100%" />
+          <el-input-number v-model="form.totalAmount" :min="0.01" :precision="2" controls-position="right" style="width: 100%" />
         </el-form-item>
         <el-form-item label="维保周期" prop="periodMonths">
           <el-input-number v-model="form.periodMonths" :min="6" :step="3" controls-position="right" style="width: 100%" />
           <div style="font-size: 12px; color: #909399; line-height: 1.4; margin-top: 4px;">必须为 3 的倍数且 ≥ 6</div>
         </el-form-item>
-        <el-form-item label="响应SLA">
+        <el-form-item label="响应SLA" prop="responseSla">
           <el-input v-model="form.responseSla" placeholder="如 2小时响应" />
         </el-form-item>
         <el-form-item label="服务范围">

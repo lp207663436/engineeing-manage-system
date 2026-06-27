@@ -2,8 +2,8 @@ import request from '@/utils/request'
 
 // ===== 用户 =====
 export interface SysUserDTO {
-  id?: number
-  deptId?: number
+  id?: string
+  deptId?: string
   username: string
   password?: string
   name: string
@@ -13,25 +13,25 @@ export interface SysUserDTO {
 }
 
 export const userApi = {
-  page: (params: { pageNum: number; pageSize: number; name?: string; deptId?: number }) =>
+  page: (params: { pageNum: number; pageSize: number; name?: string; deptId?: string }) =>
     request.get('/sys/user/page', { params }),
   create: (data: SysUserDTO) => request.post('/sys/user', data),
   update: (data: SysUserDTO) => request.put('/sys/user', data),
-  delete: (id: number) => request.delete(`/sys/user/${id}`),
-  assignRoles: (data: { userId: number; roleIds: number[] }) =>
+  delete: (id: string) => request.delete(`/sys/user/${id}`),
+  assignRoles: (data: { userId: string; roleIds: string[] }) =>
     request.post('/sys/user/assignRoles', data),
-  getRoleIds: (userId: number) => request.get(`/sys/user/roleIds/${userId}`),
+  getRoleIds: (userId: string) => request.get(`/sys/user/roleIds/${userId}`),
 }
 
 // ===== 角色 =====
 export interface SysRoleDTO {
-  id?: number
+  id?: string
   name: string
   code: string
   dataScope?: number
   sort?: number
   status?: number
-  menuIds?: number[]
+  menuIds?: string[]
 }
 
 export const roleApi = {
@@ -40,8 +40,8 @@ export const roleApi = {
   list: () => request.get('/sys/role/list'),
   create: (data: SysRoleDTO) => request.post('/sys/role', data),
   update: (data: SysRoleDTO) => request.put('/sys/role', data),
-  delete: (id: number) => request.delete(`/sys/role/${id}`),
-  getMenuIds: (roleId: number) => request.get(`/sys/role/menuIds/${roleId}`),
+  delete: (id: string) => request.delete(`/sys/role/${id}`),
+  getMenuIds: (roleId: string) => request.get(`/sys/role/menuIds/${roleId}`),
 }
 
 // ===== 菜单 =====
@@ -51,7 +51,7 @@ export const menuApi = {
   userMenus: () => request.get('/sys/menu/userMenus'),
   create: (data: any) => request.post('/sys/menu', data),
   update: (data: any) => request.put('/sys/menu', data),
-  delete: (id: number) => request.delete(`/sys/menu/${id}`),
+  delete: (id: string) => request.delete(`/sys/menu/${id}`),
 }
 
 // ===== 部门 =====
@@ -60,7 +60,7 @@ export const deptApi = {
   tree: () => request.get('/sys/dept/tree'),
   create: (data: any) => request.post('/sys/dept', data),
   update: (data: any) => request.put('/sys/dept', data),
-  delete: (id: number) => request.delete(`/sys/dept/${id}`),
+  delete: (id: string) => request.delete(`/sys/dept/${id}`),
 }
 
 // ===== 消息通知 =====

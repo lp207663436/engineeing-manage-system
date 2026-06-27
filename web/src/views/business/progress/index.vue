@@ -136,6 +136,9 @@ async function handleDelete(row: Progress) {
 const rules = {
   code: [{ required: true, message: '请输入进度编号', trigger: 'blur' }],
   nodeName: [{ required: true, message: '请输入节点名称', trigger: 'blur' }],
+  projectId: [{ required: true, message: '请选择所属项目', trigger: 'change' }],
+  planStartDate: [{ required: true, message: '请选择计划开始日期', trigger: 'change' }],
+  planEndDate: [{ required: true, message: '请选择计划结束日期', trigger: 'change' }],
 }
 
 onMounted(() => {
@@ -225,7 +228,7 @@ onMounted(() => {
         <el-form-item label="节点名称" prop="nodeName">
           <el-input v-model="form.nodeName" placeholder="请输入节点名称" />
         </el-form-item>
-        <el-form-item label="项目">
+        <el-form-item label="项目" prop="projectId">
           <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
             <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
@@ -253,10 +256,10 @@ onMounted(() => {
             <el-option v-for="(label, key) in statusMap" :key="key" :label="label" :value="key" />
           </el-select>
         </el-form-item>
-        <el-form-item label="计划开始">
+        <el-form-item label="计划开始" prop="planStartDate">
           <el-date-picker v-model="form.planStartDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="计划结束">
+        <el-form-item label="计划结束" prop="planEndDate">
           <el-date-picker v-model="form.planEndDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="实际开始">

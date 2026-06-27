@@ -5,6 +5,8 @@ import com.ems.module.business.entity.Acceptance;
 import com.ems.module.business.entity.MaintenanceContract;
 import com.ems.module.business.mapper.AcceptanceMapper;
 import com.ems.module.business.mapper.MaintenanceContractMapper;
+import com.ems.module.system.entity.SysNotification;
+import com.ems.module.system.mapper.SysNotificationMapper;
 import com.ems.module.system.mapper.SysUserMapper;
 import com.ems.module.system.service.SysNotificationService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import java.util.List;
 public class NotificationScheduler {
 
     private final SysNotificationService notificationService;
+    private final SysNotificationMapper notificationMapper;
     private final AcceptanceMapper acceptanceMapper;
     private final MaintenanceContractMapper maintenanceContractMapper;
     private final SysUserMapper sysUserMapper;
@@ -40,6 +43,7 @@ public class NotificationScheduler {
 
     /**
      * 验收催办:超期未处理(PENDING 且创建超过 7 天)
+     * 去重:3 天内已发过相同通知则跳过
      */
     private void scanOverdueAcceptance() {
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
@@ -52,6 +56,17 @@ public class NotificationScheduler {
             if (a.getAcceptorId() == null) {
                 continue;
             }
+            // 催办去重:3 天内已发过相同通知则跳过
+            Long existCount = notificationMapper.selectCount(
+                    new LambdaQueryWrapper<SysNotification>()
+                            .eq(SysNotification::getUserId, a.getAcceptorId())
+                            .eq(SysNotification::getBusinessType, "ACCEPTANCE")
+                            .eq(SysNotification::getBusinessId, a.getId())
+                            .eq(SysNotification::getType, "ACCEPTANCE")
+                            .ge(SysNotification::getCreateTime, LocalDateTime.now().minusDays(3)));
+            if (existCount != null && existCount > 0) {
+                continue;
+            }
             notificationService.send(a.getAcceptorId(),
                     "验收催办",
                     "验收单 " + a.getCode() + " 超期未处理,请尽快处理",
@@ -61,6 +76,7 @@ public class NotificationScheduler {
 
     /**
      * 维保合同到期提醒:30天内即将到期
+     * 去重:1 天内已发过相同通知则跳过
      */
     private void scanExpiringContracts() {
         LocalDate today = LocalDate.now();
@@ -73,6 +89,17 @@ public class NotificationScheduler {
         log.info("[NotificationScheduler] 即将到期维保合同数: {}", list.size());
         for (MaintenanceContract c : list) {
             if (c.getCreateBy() == null) {
+                continue;
+            }
+            // 去重:1 天内已发过相同通知则跳过
+            Long existCount = notificationMapper.selectCount(
+                    new LambdaQueryWrapper<SysNotification>()
+                            .eq(SysNotification::getUserId, c.getCreateBy())
+                            .eq(SysNotification::getBusinessType, "MAINTENANCE_CONTRACT")
+                            .eq(SysNotification::getBusinessId, c.getId())
+                            .eq(SysNotification::getType, "WARRANTY")
+                            .ge(SysNotification::getCreateTime, LocalDateTime.now().minusDays(1)));
+            if (existCount != null && existCount > 0) {
                 continue;
             }
             notificationService.send(c.getCreateBy(),

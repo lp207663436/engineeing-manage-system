@@ -1,6 +1,7 @@
 package com.ems.module.business.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
@@ -79,7 +80,7 @@ public class ContractPaymentService {
         if (dto.getContractId() != null) {
             validateContractExist(dto.getContractId());
         }
-        BeanUtils.copyProperties(dto, existing);
+        BeanUtils.copyProperties(dto, existing, "status", "actualAmount", "actualDate", "invoiceNo", "id", "createTime", "createBy");
         if (dto.getPlanDate() != null) {
             existing.setPlanDate(StringUtils.hasText(dto.getPlanDate()) ? LocalDate.parse(dto.getPlanDate()) : null);
         }
@@ -90,25 +91,43 @@ public class ContractPaymentService {
     }
 
     public void delete(Long id) {
-        get(id);
+        ContractPayment existing = get(id);
+        if ("RECEIVED".equals(existing.getStatus())) throw new BusinessException("已收款的记录不可删除");
         contractPaymentMapper.deleteById(id);
     }
 
     /**
-     * 记录实际收付款。若 actualAmount >= planAmount 则状态置为 RECEIVED。
+     * 记录实际收付款。若 actualAmount >= planAmount 则状态置为 RECEIVED,否则置为 PARTIAL。
+     * 使用条件更新实现并发控制:仅当状态非 RECEIVED 时更新。
      */
     public void recordActual(Long id, BigDecimal actualAmount, LocalDate actualDate, String invoiceNo) {
+        if (actualAmount == null || actualAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("实际收付款金额必须大于0");
+        }
         ContractPayment existing = get(id);
-        existing.setActualAmount(actualAmount);
-        existing.setActualDate(actualDate);
+        if ("RECEIVED".equals(existing.getStatus())) {
+            throw new BusinessException("已收款记录不可重复登记");
+        }
+        String newStatus;
+        if (existing.getPlanAmount() != null && actualAmount.compareTo(existing.getPlanAmount()) >= 0) {
+            newStatus = "RECEIVED";
+        } else {
+            newStatus = "PARTIAL";
+        }
+        // 条件更新:仅当状态非 RECEIVED 时更新,实现并发控制
+        LambdaUpdateWrapper<ContractPayment> updateWrapper = Wrappers.<ContractPayment>lambdaUpdate()
+                .eq(ContractPayment::getId, id)
+                .ne(ContractPayment::getStatus, "RECEIVED")
+                .set(ContractPayment::getActualAmount, actualAmount)
+                .set(ContractPayment::getActualDate, actualDate)
+                .set(ContractPayment::getStatus, newStatus);
         if (StringUtils.hasText(invoiceNo)) {
-            existing.setInvoiceNo(invoiceNo);
+            updateWrapper.set(ContractPayment::getInvoiceNo, invoiceNo);
         }
-        if (actualAmount != null && existing.getPlanAmount() != null
-                && actualAmount.compareTo(existing.getPlanAmount()) >= 0) {
-            existing.setStatus("RECEIVED");
+        int rows = contractPaymentMapper.update(null, updateWrapper);
+        if (rows == 0) {
+            throw new BusinessException("记录已被其他操作更新,请刷新后重试");
         }
-        contractPaymentMapper.updateById(existing);
     }
 
     /**
@@ -137,11 +156,11 @@ public class ContractPaymentService {
             if ("RECEIVABLE".equals(p.getType())) {
                 receivablePlanned = receivablePlanned.add(plan);
                 receivableReceived = receivableReceived.add(actual);
-                if (overdue) receivableOverdue = receivableOverdue.add(plan.subtract(actual));
+                if (overdue) receivableOverdue = receivableOverdue.add(plan.subtract(actual).max(BigDecimal.ZERO));
             } else if ("PAYABLE".equals(p.getType())) {
                 payablePlanned = payablePlanned.add(plan);
                 payablePaid = payablePaid.add(actual);
-                if (overdue) payableOverdue = payableOverdue.add(plan.subtract(actual));
+                if (overdue) payableOverdue = payableOverdue.add(plan.subtract(actual).max(BigDecimal.ZERO));
             }
         }
 

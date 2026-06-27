@@ -35,7 +35,10 @@ const adjustDialogVisible = ref(false)
 const adjustFormRef = ref<FormInstance>()
 const adjustForm = reactive({ id: '', amount: 0, remark: '' })
 const adjustRules = {
-  amount: [{ required: true, message: '请输入调整金额', trigger: 'blur' }],
+  amount: [
+    { required: true, message: '请输入调整金额', trigger: 'blur' },
+    { type: 'number', min: 0.01, message: '调整金额必须大于0', trigger: 'blur' },
+  ],
 }
 
 type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
@@ -290,7 +293,7 @@ onMounted(() => {
     <el-dialog v-model="adjustDialogVisible" title="调整金额" width="480px">
       <el-form ref="adjustFormRef" :model="adjustForm" :rules="adjustRules" label-width="100px">
         <el-form-item label="调整金额" prop="amount">
-          <el-input-number v-model="adjustForm.amount" :min="0" :precision="2" controls-position="right" style="width: 100%" />
+          <el-input-number v-model="adjustForm.amount" :min="0.01" :precision="2" controls-position="right" style="width: 100%" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="adjustForm.remark" type="textarea" :rows="3" placeholder="调整原因说明" />

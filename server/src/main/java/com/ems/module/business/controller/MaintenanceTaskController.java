@@ -2,6 +2,7 @@ package com.ems.module.business.controller;
 
 import com.ems.common.PageResult;
 import com.ems.common.Result;
+import com.ems.common.datascope.DataScope;
 import com.ems.module.business.dto.MaintenanceTaskDTO;
 import com.ems.module.business.entity.MaintenanceTask;
 import com.ems.module.business.service.MaintenanceTaskService;
@@ -20,6 +21,7 @@ public class MaintenanceTaskController {
     private final MaintenanceTaskService maintenanceTaskService;
 
     @GetMapping("/page")
+    @DataScope
     @RequirePermission("business:maintenanceTask:list")
     public Result<PageResult<MaintenanceTask>> page(@RequestParam(defaultValue = "1") long pageNum,
                                                      @RequestParam(defaultValue = "10") long pageSize,

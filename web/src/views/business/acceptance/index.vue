@@ -178,6 +178,9 @@ function formatRectify(count: number) {
 
 const rules = {
   code: [{ required: true, message: '请输入验收编号', trigger: 'blur' }],
+  projectId: [{ required: true, message: '请选择所属项目', trigger: 'change' }],
+  acceptorId: [{ required: true, message: '请选择验收人', trigger: 'change' }],
+  acceptDate: [{ required: true, message: '请选择验收日期', trigger: 'change' }],
 }
 
 const resultRules = {
@@ -266,7 +269,7 @@ onMounted(() => {
         <el-form-item label="验收编号" prop="code">
           <el-input v-model="form.code" :disabled="isEdit" placeholder="如 AC2026-001" />
         </el-form-item>
-        <el-form-item label="项目">
+        <el-form-item label="项目" prop="projectId">
           <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
             <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
@@ -286,12 +289,12 @@ onMounted(() => {
             <el-option v-for="opt in quoteOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="验收人">
+        <el-form-item label="验收人" prop="acceptorId">
           <el-select v-model="form.acceptorId" placeholder="请选择验收人" clearable filterable style="width: 100%">
             <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="验收日期">
+        <el-form-item label="验收日期" prop="acceptDate">
           <el-date-picker v-model="form.acceptDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="实际工程量">

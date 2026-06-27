@@ -8,6 +8,7 @@ import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.AcceptanceDTO;
 import com.ems.module.business.entity.Acceptance;
 import com.ems.module.business.mapper.AcceptanceMapper;
+import com.ems.module.system.service.SysNotificationService;
 import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -21,6 +22,7 @@ import java.time.LocalDate;
 public class AcceptanceService {
 
     private final AcceptanceMapper acceptanceMapper;
+    private final SysNotificationService notificationService;
 
     public PageResult<Acceptance> page(long pageNum, long pageSize, String code, String result,
                                        String businessType, Long businessId) {
@@ -51,6 +53,15 @@ public class AcceptanceService {
         if (a.getRectifyCount() == null) a.setRectifyCount(0);
         a.setCreateBy(SecurityContext.getUserId());
         acceptanceMapper.insert(a);
+        // 通知验收人
+        if (dto.getAcceptorId() != null) {
+            notificationService.send(dto.getAcceptorId(),
+                    "待验收通知",
+                    "您有新的验收任务待处理,验收单号: " + a.getCode(),
+                    "ACCEPTANCE",
+                    "ACCEPTANCE",
+                    a.getId());
+        }
         return a;
     }
 
@@ -81,5 +92,17 @@ public class AcceptanceService {
         existing.setResult(result);
         if (StringUtils.hasText(remark)) existing.setRemark(remark);
         acceptanceMapper.updateById(existing);
+        // 通知验收单创建人
+        if (existing.getCreateBy() != null) {
+            String resultText = "PASS".equals(result) ? "验收通过"
+                    : "FAIL".equals(result) ? "验收不通过" : "待仲裁";
+            notificationService.send(existing.getCreateBy(),
+                    "验收结论通知",
+                    "验收单 " + existing.getCode() + " 结论: " + resultText
+                            + (remark != null ? ", 备注: " + remark : ""),
+                    "ACCEPTANCE",
+                    "ACCEPTANCE",
+                    existing.getId());
+        }
     }
 }

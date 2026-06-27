@@ -21,6 +21,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/business/preview")
@@ -41,10 +42,22 @@ public class PreviewController {
             throw new BusinessException("附件不存在");
         }
 
+        // 业务权限校验:超管或附件创建人本人可访问(最低限度校验,完整数据权限由列表接口 @DataScope 保证)
+        Long currentUserId = SecurityContext.getUserId();
+        if (currentUserId == null || (currentUserId != 1L && !currentUserId.equals(attachment.getCreateBy()))) {
+            throw new BusinessException(403, "无权访问该附件");
+        }
+
         // 解析文件物理路径(与 AttachmentController 上传逻辑保持一致)
         String relative = attachment.getFilePath().startsWith("/")
                 ? attachment.getFilePath().substring(1) : attachment.getFilePath();
-        Path filePath = Paths.get(System.getProperty("user.dir"), relative);
+        // 路径遍历修复:规范化后校验是否在 uploads 基目录下
+        Path base = Paths.get(System.getProperty("user.dir"), "uploads").normalize().toAbsolutePath();
+        Path filePath = Paths.get(System.getProperty("user.dir"), relative).normalize().toAbsolutePath();
+        if (!filePath.startsWith(base)) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
         if (!Files.exists(filePath)) {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             return;
@@ -60,13 +73,17 @@ public class PreviewController {
                 resolveClientIp(request)
         );
 
-        // 设置响应头:在线预览(inline),非下载
+        // Content-Type 白名单:非白名单类型强制下载,防止 XSS
+        Set<String> safeTypes = Set.of("image/jpeg", "image/png", "image/gif", "image/webp",
+                "application/pdf", "text/plain", "video/mp4");
         String contentType = attachment.getFileType();
-        if (contentType == null || contentType.isEmpty()) {
-            contentType = "application/octet-stream";
+        if (!safeTypes.contains(contentType)) {
+            response.setContentType("application/octet-stream");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + attachment.getName() + "\"");
+        } else {
+            response.setContentType(contentType);
+            response.setHeader("Content-Disposition", "inline");
         }
-        response.setContentType(contentType);
-        response.setHeader("Content-Disposition", "inline");
         response.setHeader("X-Content-Type-Options", "nosniff");
         response.setContentLengthLong(Files.size(filePath));
 

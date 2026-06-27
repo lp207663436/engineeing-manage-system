@@ -15,15 +15,30 @@ import com.ems.module.system.service.SysNotificationService;
 import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class QuarterlySettlementService {
+    /**
+     * 合法状态流转:DRAFT→REVIEWED→CONFIRMED→INVOICED→RECEIVED→CLOSED
+     */
+    private static final Map<String, Set<String>> VALID_TRANSITIONS = Map.of(
+        "DRAFT", Set.of("REVIEWED"),
+        "REVIEWED", Set.of("CONFIRMED", "DRAFT"),
+        "CONFIRMED", Set.of("INVOICED", "REVIEWED"),
+        "INVOICED", Set.of("RECEIVED", "CONFIRMED"),
+        "RECEIVED", Set.of("CLOSED", "INVOICED"),
+        "CLOSED", Set.of()
+    );
+
     private final QuarterlySettlementMapper quarterlySettlementMapper;
     private final MaintenanceContractMapper maintenanceContractMapper;
     private final ProjectMapper projectMapper;
@@ -63,6 +78,10 @@ public class QuarterlySettlementService {
      */
     public void updateStatus(Long id, String status, String remark) {
         QuarterlySettlement existing = get(id);
+        Set<String> allowed = VALID_TRANSITIONS.get(existing.getStatus());
+        if (allowed == null || !allowed.contains(status)) {
+            throw new BusinessException("非法状态流转: " + existing.getStatus() + " → " + status);
+        }
         existing.setStatus(status);
         if (StringUtils.hasText(remark)) existing.setRemark(remark);
         quarterlySettlementMapper.updateById(existing);
@@ -73,15 +92,18 @@ public class QuarterlySettlementService {
      */
     public void adjust(Long id, BigDecimal amount, String remark) {
         if (amount == null) throw new BusinessException("调整金额不能为空");
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) throw new BusinessException("调整金额必须大于0");
         if (!StringUtils.hasText(remark)) throw new BusinessException("调整金额必须填写备注说明");
         QuarterlySettlement existing = get(id);
         existing.setAmount(amount);
+        existing.setAmountVersion(existing.getAmountVersion() == null ? 1 : existing.getAmountVersion() + 1);
         existing.setRemark(remark);
         quarterlySettlementMapper.updateById(existing);
     }
 
     public void delete(Long id) {
-        get(id);
+        QuarterlySettlement s = get(id);
+        if (!"DRAFT".equals(s.getStatus())) throw new BusinessException("仅草稿状态可删除");
         quarterlySettlementMapper.deleteById(id);
     }
 
@@ -92,6 +114,7 @@ public class QuarterlySettlementService {
      * 2. baseAmount = totalAmount / periodCount(保留2位)。前 N-1 期用 baseAmount,最后一期吸纳尾差
      * 3. 对每期计算起止日,查重后 insert 草稿单,code=合同code+"-Q"+i
      */
+    @Transactional(rollbackFor = Exception.class)
     public void generateForContract(Long contractId) {
         MaintenanceContract contract = maintenanceContractMapper.selectById(contractId);
         if (contract == null) throw new BusinessException("维保主合同不存在");

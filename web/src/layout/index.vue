@@ -37,7 +37,8 @@ onUnmounted(() => {
 
 <template>
   <div class="layout" :class="{ 'is-mobile-open': isMobile && mobileOpen }">
-    <Sidebar :collapsed="collapsed" />
+    <Sidebar :collapsed="collapsed" :is-mobile="isMobile" :mobile-open="mobileOpen" @close="mobileOpen = false" />
+    <div v-if="isMobile && mobileOpen" class="drawer-mask" @click="mobileOpen = false" />
     <div class="layout-main" :class="{ 'is-collapsed': collapsed && !isMobile }">
       <Header :collapsed="collapsed" @toggle="toggleSidebar" />
       <div class="layout-content">
@@ -65,6 +66,18 @@ onUnmounted(() => {
   flex: 1;
   overflow: auto;
   background: #F9FAFB;
+}
+.drawer-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+@media (max-width: 768px) {
+  .layout-main { margin-left: 0 !important; }
 }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }

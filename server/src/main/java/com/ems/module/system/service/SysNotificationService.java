@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
+import com.ems.common.exception.BusinessException;
 import com.ems.module.system.entity.SysNotification;
 import com.ems.module.system.mapper.SysNotificationMapper;
+import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,17 @@ public class SysNotificationService {
         if (userId == null) {
             return;
         }
+        // 幂等检查:最近 7 天内已存在相同 userId + businessType + businessId + type 的通知则跳过
+        Long count = sysNotificationMapper.selectCount(new LambdaQueryWrapper<SysNotification>()
+                .eq(SysNotification::getUserId, userId)
+                .eq(SysNotification::getBusinessType, businessType)
+                .eq(SysNotification::getBusinessId, businessId)
+                .eq(SysNotification::getType, type)
+                .ge(SysNotification::getCreateTime, LocalDateTime.now().minusDays(7)));
+        if (count != null && count > 0) {
+            return; // 幂等,跳过重复通知
+        }
+
         SysNotification n = new SysNotification();
         n.setUserId(userId);
         n.setTitle(title);
@@ -92,6 +105,11 @@ public class SysNotificationService {
         if (n == null) {
             return;
         }
+        // 越权校验:仅通知归属人或超管可操作
+        Long currentUserId = SecurityContext.getUserId();
+        if (currentUserId == null || (!currentUserId.equals(n.getUserId()) && currentUserId != 1L)) {
+            throw new BusinessException(403, "无权操作他人通知");
+        }
         n.setIsRead(1);
         sysNotificationMapper.updateById(n);
     }
@@ -112,6 +130,15 @@ public class SysNotificationService {
      * 删除
      */
     public void delete(Long id) {
+        SysNotification n = sysNotificationMapper.selectById(id);
+        if (n == null) {
+            return;
+        }
+        // 越权校验:仅通知归属人或超管可操作
+        Long currentUserId = SecurityContext.getUserId();
+        if (currentUserId == null || (!currentUserId.equals(n.getUserId()) && currentUserId != 1L)) {
+            throw new BusinessException(403, "无权操作他人通知");
+        }
         sysNotificationMapper.deleteById(id);
     }
 }

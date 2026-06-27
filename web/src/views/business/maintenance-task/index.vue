@@ -218,6 +218,16 @@ function handlerName(row: Row) {
 
 const rules = {
   code: [{ required: true, message: '请输入任务编号', trigger: 'blur' }],
+  type: [{ required: true, message: '请选择任务类型', trigger: 'change' }],
+  title: [{ required: true, message: '请输入任务标题', trigger: 'blur' }],
+  projectId: [{ required: true, message: '请选择所属项目', trigger: 'change' }],
+  planDate: [{ required: true, message: '请选择计划日期', trigger: 'change' }],
+  equipmentId: [{
+    validator: (_r: any, v: any, cb: any) => {
+      if (form.type === 'REPAIR' && !v) cb(new Error('报修任务必须选择故障设备'))
+      else cb()
+    }, trigger: 'change',
+  }],
 }
 
 onMounted(async () => {
@@ -341,7 +351,7 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="任务类型">
+            <el-form-item label="任务类型" prop="type">
               <el-select v-model="form.type" style="width: 100%">
                 <el-option v-for="(label, key) in typeMap" :key="key" :label="label" :value="key" />
               </el-select>
@@ -350,7 +360,7 @@ onMounted(async () => {
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="所属项目">
+            <el-form-item label="所属项目" prop="projectId">
               <el-select
                 v-model="form.projectId"
                 placeholder="选择项目"
@@ -378,7 +388,7 @@ onMounted(async () => {
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="故障设备">
+            <el-form-item label="故障设备" prop="equipmentId">
               <el-select
                 v-model="form.equipmentId"
                 placeholder="选择设备"
@@ -403,7 +413,7 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="标题">
+        <el-form-item label="标题" prop="title">
           <el-input v-model="form.title" placeholder="任务标题" />
         </el-form-item>
         <el-row :gutter="16">
@@ -436,7 +446,7 @@ onMounted(async () => {
         </el-row>
         <el-row :gutter="16">
           <el-col :span="8">
-            <el-form-item label="计划日期">
+            <el-form-item label="计划日期" prop="planDate">
               <el-date-picker
                 v-model="form.planDate"
                 type="date"

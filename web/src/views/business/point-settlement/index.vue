@@ -125,6 +125,12 @@ function formatAmount(v: number) {
 
 const rules = {
   code: [{ required: true, message: '请输入结算单编号', trigger: 'blur' }],
+  projectId: [{ required: true, message: '请选择所属项目', trigger: 'change' }],
+  pointId: [{ required: true, message: '请选择点位', trigger: 'change' }],
+  amount: [
+    { required: true, message: '请输入结算金额', trigger: 'blur' },
+    { type: 'number', min: 0.01, message: '结算金额必须大于0', trigger: 'blur' },
+  ],
 }
 
 async function loadOptions() {
@@ -231,12 +237,12 @@ onMounted(() => {
         <el-form-item label="结算单编号" prop="code">
           <el-input v-model="form.code" :disabled="isEdit" placeholder="如 PS2026-001" />
         </el-form-item>
-        <el-form-item label="项目">
+        <el-form-item label="项目" prop="projectId">
           <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
             <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="点位">
+        <el-form-item label="点位" prop="pointId">
           <el-select v-model="form.pointId" placeholder="请选择点位" clearable filterable style="width: 100%">
             <el-option v-for="opt in pointOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
@@ -251,8 +257,8 @@ onMounted(() => {
             <el-option v-for="opt in acceptanceOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="结算金额">
-          <el-input-number v-model="form.amount" :min="0" :precision="2" controls-position="right" style="width: 100%" />
+        <el-form-item label="结算金额" prop="amount">
+          <el-input-number v-model="form.amount" :min="0.01" :precision="2" controls-position="right" style="width: 100%" />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" style="width: 100%">

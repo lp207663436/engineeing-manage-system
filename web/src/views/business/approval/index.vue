@@ -50,6 +50,12 @@ const approveForm = reactive({
 })
 const approveRules = {
   result: [{ required: true, message: '请选择审批结果', trigger: 'change' }],
+  opinion: [{
+    validator: (_r: any, v: any, cb: any) => {
+      if (approveForm.result === 'REJECTED' && !v) cb(new Error('拒绝时必须填写审批意见'))
+      else cb()
+    }, trigger: 'blur',
+  }],
 }
 
 async function loadPending() {
@@ -270,7 +276,7 @@ onMounted(() => {
             <el-radio value="REJECTED">拒绝</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="审批意见">
+        <el-form-item label="审批意见" prop="opinion">
           <el-input
             v-model="approveForm.opinion"
             type="textarea"

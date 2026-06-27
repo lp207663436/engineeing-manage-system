@@ -1,6 +1,7 @@
 package com.ems.module.business.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
 import com.ems.common.exception.BusinessException;
@@ -45,6 +46,16 @@ public class ApprovalService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void startApproval(String businessType, Long businessId) {
+        // 重复发起审批校验:根据业务实体 approvalStatus 判断
+        String currentStatus = getBusinessApprovalStatus(businessType, businessId);
+        if ("PENDING".equals(currentStatus)) {
+            throw new BusinessException("审批进行中,无法重复发起");
+        }
+        if ("APPROVED".equals(currentStatus)) {
+            throw new BusinessException("已通过,无法重新发起");
+        }
+        // REJECTED 或 NONE 允许发起
+
         ApprovalFlow flow = approvalFlowMapper.selectOne(
                 new LambdaQueryWrapper<ApprovalFlow>()
                         .eq(ApprovalFlow::getBusinessType, businessType)
@@ -53,6 +64,7 @@ public class ApprovalService {
             throw new BusinessException("未找到启用的审批流程: " + businessType);
         }
 
+        // TODO: amountThreshold 字段预留,暂未实现金额阈值路由,当前按 nodeOrder 顺序审批
         List<ApprovalNode> nodes = approvalNodeMapper.selectList(
                 new LambdaQueryWrapper<ApprovalNode>()
                         .eq(ApprovalNode::getFlowId, flow.getId())
@@ -69,6 +81,9 @@ public class ApprovalService {
         log.setNodeOrder(firstNode.getNodeOrder());
         log.setCreateBy(SecurityContext.getUserId());
         approvalLogMapper.insert(log);
+
+        // 通知首节点审批人
+        notifyApprovers(firstNode, businessType, businessId, "待审批:业务ID " + businessId);
 
         updateBusinessApprovalStatus(businessType, businessId, "PENDING");
     }
@@ -91,18 +106,42 @@ public class ApprovalService {
             throw new RuntimeException("未登录");
         }
 
-        log.setApproverId(user.getUserId());
-        log.setApproveTime(LocalDateTime.now());
-        log.setResult(result);
-        log.setOpinion(opinion);
-        approvalLogMapper.updateById(log);
+        // 审批人越权校验:当前用户角色需匹配节点 approverRoleId,超管(userId==1)可绕过
+        ApprovalNode currentNode = approvalNodeMapper.selectOne(
+                new LambdaQueryWrapper<ApprovalNode>()
+                        .eq(ApprovalNode::getFlowId, log.getFlowId())
+                        .eq(ApprovalNode::getNodeOrder, log.getNodeOrder()));
+        if (currentNode != null && currentNode.getApproverRoleId() != null
+                && (user.getUserId() == null || user.getUserId() != 1L)) {
+            List<SysUserRole> userRoles = sysUserRoleMapper.selectList(
+                    new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, user.getUserId()));
+            Set<Long> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toSet());
+            if (!roleIds.contains(currentNode.getApproverRoleId())) {
+                throw new BusinessException("无权审批该节点");
+            }
+        }
+
+        // 并发审批竞态条件:用 SQL 条件更新(result IS NULL)避免并发重复审批
+        int updated = approvalLogMapper.update(null,
+                new LambdaUpdateWrapper<ApprovalLog>()
+                        .eq(ApprovalLog::getId, logId)
+                        .isNull(ApprovalLog::getResult)
+                        .set(ApprovalLog::getResult, result)
+                        .set(ApprovalLog::getApproverId, user.getUserId())
+                        .set(ApprovalLog::getApproveTime, LocalDateTime.now())
+                        .set(ApprovalLog::getOpinion, opinion));
+        if (updated == 0) {
+            throw new BusinessException("该审批已被处理或不存在");
+        }
+        // 重新查询 log 获取完整数据用于后续流程
+        log = approvalLogMapper.selectById(logId);
 
         if ("REJECTED".equals(result)) {
             updateBusinessApprovalStatus(log.getBusinessType(), log.getBusinessId(), "REJECTED");
             return;
         }
 
-        // APPROVED: 查下一节点
+        // TODO: amountThreshold 字段预留,暂未实现金额阈值路由,当前按 nodeOrder 顺序审批
         ApprovalNode nextNode = approvalNodeMapper.selectOne(
                 new LambdaQueryWrapper<ApprovalNode>()
                         .eq(ApprovalNode::getFlowId, log.getFlowId())
@@ -119,21 +158,30 @@ public class ApprovalService {
             newLog.setCreateBy(user.getUserId());
             approvalLogMapper.insert(newLog);
 
-            // 通知下一节点审批人(查节点的 approverRoleId,找该角色用户发通知)
-            Long approverRoleId = nextNode.getApproverRoleId();
-            if (approverRoleId != null) {
-                List<SysUserRole> roleUsers = sysUserRoleMapper.selectList(
-                        new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, approverRoleId));
-                for (SysUserRole ur : roleUsers) {
-                    notificationService.send(ur.getUserId(),
-                            "待审批:业务ID " + log.getBusinessId(),
-                            "您有新的审批任务待处理,业务类型: " + log.getBusinessType()
-                                    + ",业务ID: " + log.getBusinessId(),
-                            "APPROVAL", log.getBusinessType(), log.getBusinessId());
-                }
-            }
+            // 通知下一节点审批人
+            notifyApprovers(nextNode, log.getBusinessType(), log.getBusinessId(),
+                    "待审批:业务ID " + log.getBusinessId());
         } else {
             updateBusinessApprovalStatus(log.getBusinessType(), log.getBusinessId(), "APPROVED");
+        }
+    }
+
+    /**
+     * 通知节点的审批人(按 approverRoleId 查找角色用户发通知)
+     */
+    private void notifyApprovers(ApprovalNode node, String businessType, Long businessId, String title) {
+        Long approverRoleId = node.getApproverRoleId();
+        if (approverRoleId == null) {
+            return;
+        }
+        List<SysUserRole> roleUsers = sysUserRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, approverRoleId));
+        for (SysUserRole ur : roleUsers) {
+            notificationService.send(ur.getUserId(),
+                    title,
+                    "您有新的审批任务待处理,业务类型: " + businessType
+                            + ",业务ID: " + businessId,
+                    "APPROVAL", businessType, businessId);
         }
     }
 
@@ -264,16 +312,38 @@ public class ApprovalService {
     private void updateBusinessApprovalStatus(String businessType, Long businessId, String status) {
         if ("CONTRACT_APPROVAL".equals(businessType)) {
             Contract contract = contractMapper.selectById(businessId);
-            if (contract != null) {
-                contract.setApprovalStatus(status);
-                contractMapper.updateById(contract);
+            if (contract == null) {
+                throw new BusinessException("业务实体不存在");
             }
+            contract.setApprovalStatus(status);
+            contractMapper.updateById(contract);
         } else if ("QUOTE_APPROVAL".equals(businessType)) {
             Quote quote = quoteMapper.selectById(businessId);
-            if (quote != null) {
-                quote.setApprovalStatus(status);
-                quoteMapper.updateById(quote);
+            if (quote == null) {
+                throw new BusinessException("业务实体不存在");
             }
+            quote.setApprovalStatus(status);
+            quoteMapper.updateById(quote);
         }
+    }
+
+    /**
+     * 查询业务实体的当前审批状态
+     */
+    private String getBusinessApprovalStatus(String businessType, Long businessId) {
+        if ("CONTRACT_APPROVAL".equals(businessType)) {
+            Contract contract = contractMapper.selectById(businessId);
+            if (contract == null) {
+                throw new BusinessException("业务实体不存在");
+            }
+            return contract.getApprovalStatus();
+        } else if ("QUOTE_APPROVAL".equals(businessType)) {
+            Quote quote = quoteMapper.selectById(businessId);
+            if (quote == null) {
+                throw new BusinessException("业务实体不存在");
+            }
+            return quote.getApprovalStatus();
+        }
+        return null;
     }
 }

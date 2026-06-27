@@ -6,8 +6,10 @@ import com.ems.common.PageResult;
 import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.ContractChangeDTO;
+import com.ems.module.business.entity.Contract;
 import com.ems.module.business.entity.ContractChange;
 import com.ems.module.business.mapper.ContractChangeMapper;
+import com.ems.module.business.mapper.ContractMapper;
 import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -21,6 +23,7 @@ import java.time.LocalDateTime;
 public class ContractChangeService {
 
     private final ContractChangeMapper contractChangeMapper;
+    private final ContractMapper contractMapper;
 
     public PageResult<ContractChange> page(long pageNum, long pageSize, Long contractId, String changeType, String status) {
         LambdaQueryWrapper<ContractChange> wrapper = new LambdaQueryWrapper<>();
@@ -40,6 +43,8 @@ public class ContractChangeService {
     }
 
     public ContractChange create(ContractChangeDTO dto) {
+        Contract contract = contractMapper.selectById(dto.getContractId());
+        if (contract == null) throw new BusinessException("关联合同不存在");
         ContractChange c = new ContractChange();
         BeanUtils.copyProperties(dto, c);
         if (!StringUtils.hasText(c.getStatus())) c.setStatus("PENDING");
@@ -50,12 +55,15 @@ public class ContractChangeService {
 
     public void update(ContractChangeDTO dto) {
         ContractChange existing = get(dto.getId());
+        if ("APPROVED".equals(existing.getStatus()) || "REJECTED".equals(existing.getStatus()))
+            throw new BusinessException("已审核记录不可修改");
         BeanUtils.copyProperties(dto, existing);
         contractChangeMapper.updateById(existing);
     }
 
     public void delete(Long id) {
-        get(id);
+        ContractChange existing = get(id);
+        if ("APPROVED".equals(existing.getStatus())) throw new BusinessException("已审核通过的变更不可删除");
         contractChangeMapper.deleteById(id);
     }
 
@@ -78,5 +86,14 @@ public class ContractChangeService {
         existing.setApproveTime(LocalDateTime.now());
         if (StringUtils.hasText(remark)) existing.setRemark(remark);
         contractChangeMapper.updateById(existing);
+
+        // 审核通过且金额变更时,回写合同主表金额
+        if ("APPROVED".equals(status) && "AMOUNT".equals(existing.getChangeField()) && existing.getNewAmount() != null) {
+            Contract contract = contractMapper.selectById(existing.getContractId());
+            if (contract != null) {
+                contract.setAmount(existing.getNewAmount());
+                contractMapper.updateById(contract);
+            }
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.ems.common.excel;
 
 import com.alibaba.excel.EasyExcel;
+import com.ems.common.exception.BusinessException;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,6 +28,10 @@ public class ExcelExportUtil {
      * @param data     数据列表
      */
     public static void write(HttpServletResponse response, String fileName, Class<?> head, List<?> data) {
+        // 行数上限:防止导出数据量过大导致 OOM
+        if (data != null && data.size() > 100000) {
+            throw new BusinessException("导出数据量过大(" + data.size() + "行),请缩小查询范围(上限10万行)");
+        }
         try {
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setCharacterEncoding("UTF-8");

@@ -135,6 +135,13 @@ function formatAmount(v: number) {
 
 const rules = {
   code: [{ required: true, message: '请输入报价编号', trigger: 'blur' }],
+  amount: [
+    { required: true, message: '请输入报价金额', trigger: 'blur' },
+    { type: 'number', min: 0.01, message: '报价金额必须大于0', trigger: 'blur' },
+  ],
+  customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
+  quoteDate: [{ required: true, message: '请选择报价日期', trigger: 'change' }],
+  quotePerson: [{ required: true, message: '请输入报价人', trigger: 'blur' }],
 }
 
 // ===== 审批相关 =====
@@ -277,16 +284,16 @@ onMounted(() => {
             <el-option v-for="opt in businessIdOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="客户名称">
+        <el-form-item label="客户名称" prop="customerName">
           <el-input v-model="form.customerName" placeholder="客户名称" />
         </el-form-item>
-        <el-form-item label="报价金额">
-          <el-input-number v-model="form.amount" :min="0" :precision="2" controls-position="right" style="width: 100%" />
+        <el-form-item label="报价金额" prop="amount">
+          <el-input-number v-model="form.amount" :min="0.01" :precision="2" controls-position="right" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="报价人">
+        <el-form-item label="报价人" prop="quotePerson">
           <el-input v-model="form.quotePerson" placeholder="报价人" />
         </el-form-item>
-        <el-form-item label="报价日期">
+        <el-form-item label="报价日期" prop="quoteDate">
           <el-date-picker v-model="form.quoteDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="有效期至">

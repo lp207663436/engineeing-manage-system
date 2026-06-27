@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 public class ContractChangeDTO {
     private Long id;
@@ -15,5 +17,8 @@ public class ContractChangeDTO {
     private Long supplementFileId;
     private Long approverId;
     private String status;
+    private BigDecimal originalAmount;
+    private BigDecimal newAmount;
+    private String changeField;
     private String remark;
 }

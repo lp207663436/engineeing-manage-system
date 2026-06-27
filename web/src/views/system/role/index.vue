@@ -16,8 +16,8 @@ const isEdit = ref(false)
 
 const menuDialogVisible = ref(false)
 const menuTree = ref<any[]>([])
-const currentRoleId = ref<number>(0)
-const checkedMenuIds = ref<number[]>([])
+const currentRoleId = ref<string>('')
+const checkedMenuIds = ref<string[]>([])
 
 async function loadData() {
   loading.value = true
@@ -72,7 +72,7 @@ async function handleDelete(row: any) {
 async function handleAssignMenus(row: any) {
   currentRoleId.value = row.id
   menuTree.value = await menuApi.tree()
-  const ids: number[] = await roleApi.getMenuIds(currentRoleId.value)
+  const ids: string[] = await roleApi.getMenuIds(currentRoleId.value)
   checkedMenuIds.value = ids
   menuDialogVisible.value = true
 }

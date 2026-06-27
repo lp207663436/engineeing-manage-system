@@ -3,18 +3,22 @@ package com.ems.module.business.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
+import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.MaintenanceTaskDTO;
 import com.ems.module.business.entity.MaintenanceContract;
 import com.ems.module.business.entity.MaintenancePoint;
+import com.ems.module.business.entity.MaintenanceRecord;
 import com.ems.module.business.entity.MaintenanceTask;
 import com.ems.module.business.mapper.MaintenanceContractMapper;
 import com.ems.module.business.mapper.MaintenancePointMapper;
+import com.ems.module.business.mapper.MaintenanceRecordMapper;
 import com.ems.module.business.mapper.MaintenanceTaskMapper;
 import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
@@ -27,6 +31,7 @@ public class MaintenanceTaskService {
     private final MaintenanceTaskMapper maintenanceTaskMapper;
     private final MaintenanceContractMapper maintenanceContractMapper;
     private final MaintenancePointMapper maintenancePointMapper;
+    private final MaintenanceRecordMapper maintenanceRecordMapper;
 
     public PageResult<MaintenanceTask> page(long pageNum, long pageSize, String code, String type,
                                              String status, Long projectId, Long equipmentId) {
@@ -36,6 +41,7 @@ public class MaintenanceTaskService {
         if (StringUtils.hasText(status)) wrapper.eq(MaintenanceTask::getStatus, status);
         if (projectId != null) wrapper.eq(MaintenanceTask::getProjectId, projectId);
         if (equipmentId != null) wrapper.eq(MaintenanceTask::getEquipmentId, equipmentId);
+        DataScopeHelper.applyTo(wrapper);
         wrapper.orderByDesc(MaintenanceTask::getCreateTime);
         Page<MaintenanceTask> page = maintenanceTaskMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal());
@@ -74,6 +80,7 @@ public class MaintenanceTaskService {
     public void assign(Long id, Long handlerId) {
         if (handlerId == null) throw new BusinessException("处理人不能为空");
         MaintenanceTask existing = get(id);
+        if (!"PENDING".equals(existing.getStatus())) throw new BusinessException("仅待处理状态可派单");
         existing.setHandlerId(handlerId);
         existing.setStatus("ASSIGNED");
         maintenanceTaskMapper.updateById(existing);
@@ -84,6 +91,8 @@ public class MaintenanceTaskService {
      */
     public void process(Long id, String handleMethod, String partsUsed) {
         MaintenanceTask existing = get(id);
+        if (!"ASSIGNED".equals(existing.getStatus())) throw new BusinessException("仅已派单状态可开始处理");
+        if (existing.getHandlerId() == null) throw new BusinessException("工单尚未派单,无法处理");
         existing.setHandleMethod(handleMethod);
         existing.setPartsUsed(partsUsed);
         existing.setStatus("PROCESSING");
@@ -95,9 +104,25 @@ public class MaintenanceTaskService {
      */
     public void complete(Long id, String completeDate) {
         MaintenanceTask existing = get(id);
+        if (!"PROCESSING".equals(existing.getStatus())) throw new BusinessException("仅处理中状态可完工");
         if (StringUtils.hasText(completeDate)) existing.setCompleteDate(LocalDate.parse(completeDate));
         existing.setStatus("WAITING_ACCEPTANCE");
         maintenanceTaskMapper.updateById(existing);
+
+        // 完工后自动生成维保记录
+        MaintenanceRecord record = new MaintenanceRecord();
+        record.setCode("MR-" + System.currentTimeMillis());
+        record.setProjectId(existing.getProjectId());
+        record.setPointId(existing.getPointId());
+        record.setTaskId(existing.getId());
+        record.setEquipmentId(existing.getEquipmentId());
+        record.setRecordType(existing.getType()); // INSPECTION 或 REPAIR
+        record.setRecordDate(LocalDate.now());
+        record.setRecorderId(existing.getHandlerId());
+        record.setContent(existing.getTitle() + " - " + (existing.getDescription() != null ? existing.getDescription() : ""));
+        record.setRemark(existing.getHandleMethod());
+        record.setCreateBy(SecurityContext.getUserId());
+        maintenanceRecordMapper.insert(record);
     }
 
     /**
@@ -105,15 +130,20 @@ public class MaintenanceTaskService {
      */
     public void close(Long id) {
         MaintenanceTask existing = get(id);
+        if (!"WAITING_ACCEPTANCE".equals(existing.getStatus()) && !"COMPLETED".equals(existing.getStatus()))
+            throw new BusinessException("仅待验收或已完成状态可关闭");
         existing.setStatus("CLOSED");
         maintenanceTaskMapper.updateById(existing);
     }
 
     public void delete(Long id) {
-        get(id);
+        MaintenanceTask existing = get(id);
+        if ("PROCESSING".equals(existing.getStatus()) || "CLOSED".equals(existing.getStatus()))
+            throw new BusinessException("处理中或已关闭的工单不可删除");
         maintenanceTaskMapper.deleteById(id);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Integer generateInspection(Long contractId) {
         MaintenanceContract contract = maintenanceContractMapper.selectById(contractId);
         if (contract == null) throw new BusinessException("维保合同不存在");
@@ -146,7 +176,7 @@ public class MaintenanceTaskService {
             task.setStatus("PENDING");
             task.setPlanDate(today);
             task.setPlanInspectDate(today.plusDays(7));
-            task.setCreateBy(SecurityContext.getUserId());
+            task.setCreateBy(contract.getCreateBy() != null ? contract.getCreateBy() : 0L);
             maintenanceTaskMapper.insert(task);
             generated++;
         }

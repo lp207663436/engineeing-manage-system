@@ -5,6 +5,7 @@ import com.ems.common.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -24,5 +25,17 @@ public class ContractChange extends BaseEntity {
      * 审核状态:NONE无/PENDING待审核/APPROVED已通过/REJECTED已驳回
      */
     private String status;
+    /**
+     * 原金额
+     */
+    private BigDecimal originalAmount;
+    /**
+     * 变更后金额
+     */
+    private BigDecimal newAmount;
+    /**
+     * 变更字段(如 AMOUNT/START_DATE/END_DATE)
+     */
+    private String changeField;
     private String remark;
 }
