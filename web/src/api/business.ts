@@ -446,3 +446,67 @@ export interface WorkbenchVO {
 export const workbenchApi = {
   summary: () => request.get('/business/workbench/summary'),
 }
+
+// ===== 报表中心 =====
+// 注意:导出走 blob 下载,但 request 实例的响应拦截器会解包 response.data.data,
+// 对 Blob 响应会失效,因此用 fetch 直接请求(带 token)绕过拦截器。
+async function exportBlob(url: string): Promise<Blob> {
+  const token = localStorage.getItem('ems_token')
+  const res = await fetch('/api' + url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) {
+    const msg = await res.text().catch(() => '导出失败')
+    throw new Error(msg || '导出失败')
+  }
+  return res.blob()
+}
+
+export const reportApi = {
+  exportProject: () => exportBlob('/business/report/export/project'),
+  exportContractPayment: () => exportBlob('/business/report/export/contract-payment'),
+  exportProgress: () => exportBlob('/business/report/export/progress'),
+  exportMaintenanceWorkload: () => exportBlob('/business/report/export/maintenance-workload'),
+  exportSettlement: () => exportBlob('/business/report/export/settlement'),
+}
+
+// ===== 维保统计 =====
+export interface FaultTypeStat {
+  type: string
+  count: number
+}
+
+export interface ResponseTimeStat {
+  avgResponseHours: number
+  totalCount: number
+}
+
+export interface EquipmentRank {
+  equipmentId: string
+  equipmentName: string
+  faultCount: number
+}
+
+export interface WorkloadStat {
+  handlerId: string
+  taskCount: number
+  completedCount: number
+}
+
+export interface EquipmentHealth {
+  equipmentId: string
+  equipmentName: string
+  healthScore: number
+}
+
+export interface MaintenanceStatVO {
+  faultTypeStats: FaultTypeStat[]
+  responseTimeStat: ResponseTimeStat
+  equipmentRanks: EquipmentRank[]
+  workloadStats: WorkloadStat[]
+  equipmentHealth: EquipmentHealth[]
+}
+
+export const maintenanceStatApi = {
+  summary: () => request.get('/business/maintenance-stat/summary'),
+}

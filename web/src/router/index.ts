@@ -163,6 +163,18 @@ export const staticRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/business/approval/flow-config.vue'),
         meta: { title: '审批流配置', icon: 'Workflow' },
       },
+      {
+        path: 'report',
+        name: 'BusinessReport',
+        component: () => import('@/views/business/report/index.vue'),
+        meta: { title: '报表中心', icon: 'FileSpreadsheet' },
+      },
+      {
+        path: 'maintenance-stat',
+        name: 'BusinessMaintenanceStat',
+        component: () => import('@/views/business/maintenance-stat/index.vue'),
+        meta: { title: '维保统计', icon: 'BarChart3' },
+      },
     ],
   },
   {

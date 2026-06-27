@@ -42,6 +42,7 @@ public class DbInitRunner implements CommandLineRunner {
         createApprovalNodeTable();
         createApprovalLogTable();
         createSysNotificationTable();
+        createPreviewLogTable();
         seedBusinessMenus();
         System.out.println("[DbInitRunner] 业务模块表初始化完成");
     }
@@ -471,6 +472,22 @@ public class DbInitRunner implements CommandLineRunner {
                 ") COMMENT '站内通知表'");
     }
 
+    private void createPreviewLogTable() {
+        exec("CREATE TABLE IF NOT EXISTS preview_log (" +
+                "id BIGINT PRIMARY KEY," +
+                "user_id BIGINT COMMENT '预览人'," +
+                "attachment_id BIGINT NOT NULL COMMENT '附件ID'," +
+                "attachment_name VARCHAR(255) COMMENT '附件名称'," +
+                "business_type VARCHAR(30) COMMENT '业务类型'," +
+                "business_id BIGINT COMMENT '业务ID'," +
+                "ip VARCHAR(64) COMMENT 'IP地址'," +
+                "preview_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '预览时间'," +
+                "INDEX idx_user (user_id)," +
+                "INDEX idx_attachment (attachment_id)," +
+                "INDEX idx_preview_time (preview_time)" +
+                ") COMMENT '文件预览日志表'");
+    }
+
     private void seedBusinessMenus() {
         // 目录与菜单(INSERT IGNORE 幂等)
         String[][] menus = {
@@ -537,7 +554,9 @@ public class DbInitRunner implements CommandLineRunner {
                 {"2171", "217", "发起审批", "3", "business:approval:start", "", "", "1"},
                 {"2172", "217", "审批操作", "3", "business:approval:approve", "", "", "2"},
                 {"218", "200", "审批流配置", "2", "business:approval:config", "/business/approval/flow-config", "Setting", "9"},
-                {"219", "0", "消息通知", "2", "system:notification:list", "", "", "99"}
+                {"219", "0", "消息通知", "2", "system:notification:list", "", "", "99"},
+                {"220", "0", "报表中心", "2", "business:report:export", "/business/report", "FileSpreadsheet", "6"},
+                {"221", "0", "维保统计", "2", "business:maintenanceStat:list", "/business/maintenance-stat", "BarChart3", "7"}
         };
         for (String[] m : menus) {
             jdbc.update("INSERT IGNORE INTO sys_menu (id, parent_id, name, type, permission, path, icon, sort, status) " +
@@ -550,6 +569,6 @@ public class DbInitRunner implements CommandLineRunner {
         }
         // 给 admin(role_id=1)分配权限,幂等
         jdbc.update("INSERT IGNORE INTO sys_role_menu (role_id, menu_id) " +
-                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2191");
+                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2211");
     }
 }

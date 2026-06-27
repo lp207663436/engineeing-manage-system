@@ -37,6 +37,8 @@ const menuGroups = computed(() => {
     { path: '/business-dashboard', meta: { title: '运营看板', icon: 'BarChart3' }, children: [
       { path: '/business/dashboard', meta: { title: '结算看板', icon: 'BarChart3' } },
       { path: '/business/attachment', meta: { title: '附件管理', icon: 'Paperclip' } },
+      { path: '/business/report', meta: { title: '报表中心', icon: 'FileSpreadsheet' } },
+      { path: '/business/maintenance-stat', meta: { title: '维保统计', icon: 'BarChart3' } },
     ]},
     { path: '/system', meta: { title: '系统管理', icon: 'Settings' }, children: [
       { path: '/system/user', meta: { title: '用户管理', icon: 'User' } },

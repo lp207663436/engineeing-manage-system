@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { attachmentApi, type AttachmentDTO } from '@/api/business'
 import type { UploadRawFile } from 'element-plus'
+import FilePreview from '@/components/FilePreview.vue'
 
 interface Row extends AttachmentDTO {}
 
@@ -25,6 +26,10 @@ const uploadRules = {
 }
 const fileList = ref<File[]>([])
 const uploading = ref(false)
+
+// 预览
+const previewVisible = ref(false)
+const currentAttachmentId = ref<string>('')
 
 async function loadData() {
   loading.value = true
@@ -98,6 +103,12 @@ function handleDownload(row: Row) {
   window.open(attachmentApi.downloadUrl(row.id), '_blank')
 }
 
+function handlePreview(row: Row) {
+  if (!row.id) return
+  currentAttachmentId.value = row.id
+  previewVisible.value = true
+}
+
 async function handleDelete(row: Row) {
   try {
     await ElMessageBox.confirm(`确定删除附件「${row.name}」吗?`, '提示', { type: 'warning' })
@@ -154,8 +165,9 @@ onMounted(() => {
         </el-table-column>
         <el-table-column prop="fileType" label="文件类型" width="120" />
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="handlePreview(row)">预览</el-button>
             <el-button link type="primary" size="small" @click="handleDownload(row)">下载</el-button>
             <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
@@ -205,6 +217,8 @@ onMounted(() => {
         <el-button type="primary" :loading="uploading" @click="handleUploadSubmit">开始上传</el-button>
       </template>
     </el-dialog>
+
+    <FilePreview v-model:visible="previewVisible" :attachment-id="currentAttachmentId" />
   </div>
 </template>
 
