@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { maintenanceContractApi, type MaintenanceContractDTO } from '@/api/business'
+import { maintenanceContractApi, projectApi, type MaintenanceContractDTO } from '@/api/business'
+
+interface Option { label: string; value: string }
 
 interface MaintenanceContract extends MaintenanceContractDTO {
   createTime?: string
 }
+
+const projectOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<MaintenanceContract[]>([])
@@ -136,7 +140,15 @@ const rules: FormRules = {
   periodMonths: [{ required: true, validator: validatePeriodMonths, trigger: 'blur' }],
 }
 
+async function loadOptions() {
+  try {
+    const res: any = await projectApi.page({ pageNum: 1, pageSize: 200 })
+    projectOptions.value = (res.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+  } catch {}
+}
+
 onMounted(() => {
+  loadOptions()
   loadData()
 })
 </script>
@@ -160,8 +172,10 @@ onMounted(() => {
             <el-option v-for="(label, key) in statusMap" :key="key" :label="label" :value="key" />
           </el-select>
         </el-form-item>
-        <el-form-item label="项目ID">
-          <el-input v-model="query.projectId" placeholder="项目ID" clearable style="width: 180px" @keyup.enter="handleSearch" />
+        <el-form-item label="项目">
+          <el-select v-model="query.projectId" placeholder="全部" clearable filterable style="width: 200px">
+            <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
@@ -225,8 +239,10 @@ onMounted(() => {
         <el-form-item label="合同名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入合同名称" />
         </el-form-item>
-        <el-form-item label="项目ID">
-          <el-input v-model="form.projectId" placeholder="项目ID" />
+        <el-form-item label="项目">
+          <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
+            <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="甲方">
           <el-input v-model="form.partyA" placeholder="甲方名称" />

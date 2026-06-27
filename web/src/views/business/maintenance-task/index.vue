@@ -9,6 +9,9 @@ import {
   type ProjectDTO,
   type MaintenancePointDTO,
 } from '@/api/business'
+import { userApi } from '@/api/system'
+
+interface Option { label: string; value: string }
 
 interface Row extends MaintenanceTaskDTO {
   createTime?: string
@@ -21,6 +24,7 @@ const query = reactive({ pageNum: 1, pageSize: 10, code: '', status: '', project
 
 const projectOptions = ref<ProjectDTO[]>([])
 const pointOptions = ref<MaintenancePointDTO[]>([])
+const userOptions = ref<Option[]>([])
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
@@ -55,6 +59,13 @@ async function loadPoints() {
   try {
     const res: any = await maintenancePointApi.page({ pageNum: 1, pageSize: 200 })
     pointOptions.value = res.list || []
+  } catch {}
+}
+
+async function loadUsers() {
+  try {
+    const res: any = await userApi.page({ pageNum: 1, pageSize: 200 })
+    userOptions.value = (res.list || []).map((u: any) => ({ label: u.name, value: u.id }))
   } catch {}
 }
 
@@ -139,6 +150,7 @@ const rules = {
 onMounted(() => {
   loadProjects()
   loadPoints()
+  loadUsers()
   loadData()
 })
 </script>
@@ -268,12 +280,16 @@ onMounted(() => {
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="报修人">
-              <el-input v-model="form.reporterId" placeholder="报修人ID" />
+              <el-select v-model="form.reporterId" placeholder="请选择报修人" clearable filterable style="width: 100%">
+                <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="处理人">
-              <el-input v-model="form.handlerId" placeholder="处理人ID" />
+              <el-select v-model="form.handlerId" placeholder="请选择处理人" clearable filterable style="width: 100%">
+                <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>

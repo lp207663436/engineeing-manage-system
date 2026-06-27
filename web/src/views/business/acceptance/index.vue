@@ -1,11 +1,25 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { acceptanceApi, type AcceptanceDTO } from '@/api/business'
+import {
+  acceptanceApi,
+  projectApi,
+  maintenancePointApi,
+  quoteApi,
+  type AcceptanceDTO,
+} from '@/api/business'
+import { userApi } from '@/api/system'
+
+interface Option { label: string; value: string }
 
 interface Acceptance extends AcceptanceDTO {
   createTime?: string
 }
+
+const projectOptions = ref<Option[]>([])
+const pointOptions = ref<Option[]>([])
+const quoteOptions = ref<Option[]>([])
+const userOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<Acceptance[]>([])
@@ -35,6 +49,31 @@ const resultMap: Record<string, string> = {
 }
 const resultTagType: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
   PENDING: 'info', PASS: 'success', FAIL: 'danger', RECTIFYING: 'warning', ARBITRATION: 'danger',
+}
+
+const businessIdOptions = computed(() => {
+  if (form.businessType === 'NEW_BUILD') return projectOptions.value
+  if (form.businessType === 'MAINTENANCE_POINT') return pointOptions.value
+  return []
+})
+
+watch(() => form.businessType, () => {
+  form.businessId = undefined
+})
+
+async function loadOptions() {
+  try {
+    const [proj, points, quotes, users] = await Promise.all([
+      projectApi.page({ pageNum: 1, pageSize: 200 }),
+      maintenancePointApi.page({ pageNum: 1, pageSize: 200 }),
+      quoteApi.page({ pageNum: 1, pageSize: 200 }),
+      userApi.page({ pageNum: 1, pageSize: 200 }),
+    ]) as any[]
+    projectOptions.value = (proj.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    pointOptions.value = (points.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    quoteOptions.value = (quotes.list || []).map((q: any) => ({ label: q.customerName ? `${q.code} (${q.customerName})` : q.code, value: q.id }))
+    userOptions.value = (users.list || []).map((u: any) => ({ label: u.name, value: u.id }))
+  } catch {}
 }
 
 const MAX_RECTIFY = 3
@@ -146,6 +185,7 @@ const resultRules = {
 }
 
 onMounted(() => {
+  loadOptions()
   loadData()
 })
 </script>
@@ -226,14 +266,30 @@ onMounted(() => {
         <el-form-item label="验收编号" prop="code">
           <el-input v-model="form.code" :disabled="isEdit" placeholder="如 AC2026-001" />
         </el-form-item>
-        <el-form-item label="项目ID">
-          <el-input v-model="form.projectId" placeholder="项目ID" />
+        <el-form-item label="项目">
+          <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
+            <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="报价ID">
-          <el-input v-model="form.quoteId" placeholder="报价ID" />
+        <el-form-item label="业务类型">
+          <el-select v-model="form.businessType" placeholder="请选择" style="width: 100%">
+            <el-option v-for="(label, key) in businessTypeMap" :key="key" :label="label" :value="key" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="验收人ID">
-          <el-input v-model="form.acceptorId" placeholder="验收人ID" />
+        <el-form-item label="业务对象">
+          <el-select v-model="form.businessId" placeholder="请选择" clearable filterable style="width: 100%" :disabled="!form.businessType">
+            <el-option v-for="opt in businessIdOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="报价">
+          <el-select v-model="form.quoteId" placeholder="请选择报价" clearable filterable style="width: 100%">
+            <el-option v-for="opt in quoteOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="验收人">
+          <el-select v-model="form.acceptorId" placeholder="请选择验收人" clearable filterable style="width: 100%">
+            <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="验收日期">
           <el-date-picker v-model="form.acceptDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />

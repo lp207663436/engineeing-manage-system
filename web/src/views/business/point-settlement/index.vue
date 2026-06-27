@@ -1,11 +1,25 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { pointSettlementApi, type PointSettlementDTO } from '@/api/business'
+import {
+  pointSettlementApi,
+  projectApi,
+  maintenancePointApi,
+  quoteApi,
+  acceptanceApi,
+  type PointSettlementDTO,
+} from '@/api/business'
+
+interface Option { label: string; value: string }
 
 interface PointSettlement extends PointSettlementDTO {
   createTime?: string
 }
+
+const projectOptions = ref<Option[]>([])
+const pointOptions = ref<Option[]>([])
+const quoteOptions = ref<Option[]>([])
+const acceptanceOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<PointSettlement[]>([])
@@ -113,7 +127,23 @@ const rules = {
   code: [{ required: true, message: '请输入结算单编号', trigger: 'blur' }],
 }
 
+async function loadOptions() {
+  try {
+    const [proj, points, quotes, acceptances] = await Promise.all([
+      projectApi.page({ pageNum: 1, pageSize: 200 }),
+      maintenancePointApi.page({ pageNum: 1, pageSize: 200 }),
+      quoteApi.page({ pageNum: 1, pageSize: 200 }),
+      acceptanceApi.page({ pageNum: 1, pageSize: 200 }),
+    ]) as any[]
+    projectOptions.value = (proj.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    pointOptions.value = (points.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    quoteOptions.value = (quotes.list || []).map((q: any) => ({ label: q.customerName ? `${q.code} (${q.customerName})` : q.code, value: q.id }))
+    acceptanceOptions.value = (acceptances.list || []).map((a: any) => ({ label: a.code, value: a.id }))
+  } catch {}
+}
+
 onMounted(() => {
+  loadOptions()
   loadData()
 })
 </script>
@@ -129,11 +159,15 @@ onMounted(() => {
         <el-form-item label="编号">
           <el-input v-model="query.code" placeholder="结算单编号" clearable style="width: 160px" @keyup.enter="handleSearch" />
         </el-form-item>
-        <el-form-item label="点位ID">
-          <el-input v-model="query.pointId" placeholder="点位ID" clearable style="width: 160px" @keyup.enter="handleSearch" />
+        <el-form-item label="点位">
+          <el-select v-model="query.pointId" placeholder="全部" clearable filterable style="width: 200px">
+            <el-option v-for="opt in pointOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="项目ID">
-          <el-input v-model="query.projectId" placeholder="项目ID" clearable style="width: 160px" @keyup.enter="handleSearch" />
+        <el-form-item label="项目">
+          <el-select v-model="query.projectId" placeholder="全部" clearable filterable style="width: 200px">
+            <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="query.status" placeholder="全部" clearable style="width: 140px">
@@ -197,17 +231,25 @@ onMounted(() => {
         <el-form-item label="结算单编号" prop="code">
           <el-input v-model="form.code" :disabled="isEdit" placeholder="如 PS2026-001" />
         </el-form-item>
-        <el-form-item label="项目ID">
-          <el-input v-model="form.projectId" placeholder="项目ID" />
+        <el-form-item label="项目">
+          <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
+            <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="点位ID">
-          <el-input v-model="form.pointId" placeholder="点位ID" />
+        <el-form-item label="点位">
+          <el-select v-model="form.pointId" placeholder="请选择点位" clearable filterable style="width: 100%">
+            <el-option v-for="opt in pointOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="报价ID">
-          <el-input v-model="form.quoteId" placeholder="报价ID" />
+        <el-form-item label="报价">
+          <el-select v-model="form.quoteId" placeholder="请选择报价" clearable filterable style="width: 100%">
+            <el-option v-for="opt in quoteOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="验收ID">
-          <el-input v-model="form.acceptanceId" placeholder="验收ID" />
+        <el-form-item label="验收">
+          <el-select v-model="form.acceptanceId" placeholder="请选择验收" clearable filterable style="width: 100%">
+            <el-option v-for="opt in acceptanceOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="结算金额">
           <el-input-number v-model="form.amount" :min="0" :precision="2" controls-position="right" style="width: 100%" />

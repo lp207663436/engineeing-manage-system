@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { equipmentApi, type EquipmentDTO } from '@/api/business'
+import { equipmentApi, projectApi, maintenancePointApi, type EquipmentDTO } from '@/api/business'
+
+interface Option { label: string; value: string }
 
 interface Equipment extends EquipmentDTO {
   createTime?: string
 }
+
+const projectOptions = ref<Option[]>([])
+const pointOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<Equipment[]>([])
@@ -111,7 +116,19 @@ const rules = {
   name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
 }
 
+async function loadOptions() {
+  try {
+    const [proj, points] = await Promise.all([
+      projectApi.page({ pageNum: 1, pageSize: 200 }),
+      maintenancePointApi.page({ pageNum: 1, pageSize: 200 }),
+    ]) as any[]
+    projectOptions.value = (proj.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    pointOptions.value = (points.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+  } catch {}
+}
+
 onMounted(() => {
+  loadOptions()
   loadData()
 })
 </script>
@@ -194,6 +211,16 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="设备名称" prop="name">
           <el-input v-model="form.name" placeholder="设备名称" />
+        </el-form-item>
+        <el-form-item label="项目">
+          <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
+            <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="点位">
+          <el-select v-model="form.pointId" placeholder="请选择点位" clearable filterable style="width: 100%">
+            <el-option v-for="opt in pointOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="品牌">
           <el-input v-model="form.brand" placeholder="品牌" />

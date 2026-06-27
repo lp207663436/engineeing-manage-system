@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { progressApi, type ProgressDTO } from '@/api/business'
+import { progressApi, projectApi, maintenancePointApi, type ProgressDTO } from '@/api/business'
+import { userApi } from '@/api/system'
+
+interface Option { label: string; value: string }
 
 interface Progress extends ProgressDTO {
   createTime?: string
 }
+
+const projectOptions = ref<Option[]>([])
+const pointOptions = ref<Option[]>([])
+const userOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<Progress[]>([])
@@ -28,6 +35,29 @@ const statusMap: Record<string, string> = {
 }
 const statusTagType: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
   PENDING: 'info', IN_PROGRESS: 'warning', COMPLETED: 'success', OVERDUE: 'danger',
+}
+
+const businessIdOptions = computed(() => {
+  if (form.businessType === 'NEW_BUILD') return projectOptions.value
+  if (form.businessType === 'MAINTENANCE_POINT') return pointOptions.value
+  return []
+})
+
+watch(() => form.businessType, () => {
+  form.businessId = undefined
+})
+
+async function loadOptions() {
+  try {
+    const [proj, points, users] = await Promise.all([
+      projectApi.page({ pageNum: 1, pageSize: 200 }),
+      maintenancePointApi.page({ pageNum: 1, pageSize: 200 }),
+      userApi.page({ pageNum: 1, pageSize: 200 }),
+    ]) as any[]
+    projectOptions.value = (proj.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    pointOptions.value = (points.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    userOptions.value = (users.list || []).map((u: any) => ({ label: u.name, value: u.id }))
+  } catch {}
 }
 
 async function loadData() {
@@ -109,6 +139,7 @@ const rules = {
 }
 
 onMounted(() => {
+  loadOptions()
   loadData()
 })
 </script>
@@ -194,8 +225,25 @@ onMounted(() => {
         <el-form-item label="节点名称" prop="nodeName">
           <el-input v-model="form.nodeName" placeholder="请输入节点名称" />
         </el-form-item>
-        <el-form-item label="项目ID">
-          <el-input v-model="form.projectId" placeholder="项目ID" />
+        <el-form-item label="项目">
+          <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
+            <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="业务类型">
+          <el-select v-model="form.businessType" placeholder="请选择" style="width: 100%">
+            <el-option v-for="(label, key) in businessTypeMap" :key="key" :label="label" :value="key" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="业务对象">
+          <el-select v-model="form.businessId" placeholder="请选择" clearable filterable style="width: 100%" :disabled="!form.businessType">
+            <el-option v-for="opt in businessIdOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="负责人">
+          <el-select v-model="form.managerId" placeholder="请选择负责人" clearable filterable style="width: 100%">
+            <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="进度百分比">
           <el-input-number v-model="form.progressPercent" :min="0" :max="100" controls-position="right" style="width: 100%" />

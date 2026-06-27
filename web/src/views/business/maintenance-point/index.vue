@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { maintenancePointApi, type MaintenancePointDTO } from '@/api/business'
+import { maintenancePointApi, projectApi, type MaintenancePointDTO } from '@/api/business'
+import { userApi } from '@/api/system'
+
+interface Option { label: string; value: string }
 
 interface MaintenancePoint extends MaintenancePointDTO {
   createTime?: string
 }
+
+const projectOptions = ref<Option[]>([])
+const userOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<MaintenancePoint[]>([])
@@ -107,7 +113,19 @@ const rules = {
   name: [{ required: true, message: '请输入点位名称', trigger: 'blur' }],
 }
 
+async function loadOptions() {
+  try {
+    const [proj, users] = await Promise.all([
+      projectApi.page({ pageNum: 1, pageSize: 200 }),
+      userApi.page({ pageNum: 1, pageSize: 200 }),
+    ]) as any[]
+    projectOptions.value = (proj.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    userOptions.value = (users.list || []).map((u: any) => ({ label: u.name, value: u.id }))
+  } catch {}
+}
+
 onMounted(() => {
+  loadOptions()
   loadData()
 })
 </script>
@@ -131,8 +149,10 @@ onMounted(() => {
             <el-option v-for="(label, key) in statusMap" :key="key" :label="label" :value="key" />
           </el-select>
         </el-form-item>
-        <el-form-item label="项目ID">
-          <el-input v-model="query.projectId" placeholder="项目ID" clearable style="width: 180px" @keyup.enter="handleSearch" />
+        <el-form-item label="项目">
+          <el-select v-model="query.projectId" placeholder="全部" clearable filterable style="width: 200px">
+            <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
@@ -187,8 +207,10 @@ onMounted(() => {
         <el-form-item label="点位名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入点位名称" />
         </el-form-item>
-        <el-form-item label="项目ID">
-          <el-input v-model="form.projectId" placeholder="项目ID" />
+        <el-form-item label="项目">
+          <el-select v-model="form.projectId" placeholder="请选择项目" clearable filterable style="width: 100%">
+            <el-option v-for="opt in projectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="位置">
           <el-input v-model="form.location" placeholder="请输入位置" />
@@ -196,8 +218,10 @@ onMounted(() => {
         <el-form-item label="设备清单">
           <el-input v-model="form.equipmentList" type="textarea" :rows="3" placeholder="设备清单" />
         </el-form-item>
-        <el-form-item label="负责人ID">
-          <el-input v-model="form.managerId" placeholder="负责人ID" />
+        <el-form-item label="负责人">
+          <el-select v-model="form.managerId" placeholder="请选择负责人" clearable filterable style="width: 100%">
+            <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" style="width: 100%">

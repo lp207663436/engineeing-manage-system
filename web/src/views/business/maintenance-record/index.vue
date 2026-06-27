@@ -3,12 +3,16 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import {
   maintenanceRecordApi,
+  maintenanceTaskApi,
   projectApi,
   maintenancePointApi,
   type MaintenanceRecordDTO,
   type ProjectDTO,
   type MaintenancePointDTO,
 } from '@/api/business'
+import { userApi } from '@/api/system'
+
+interface Option { label: string; value: string }
 
 interface Row extends MaintenanceRecordDTO {
   createTime?: string
@@ -21,6 +25,8 @@ const query = reactive({ pageNum: 1, pageSize: 10, code: '', projectId: '', poin
 
 const projectOptions = ref<ProjectDTO[]>([])
 const pointOptions = ref<MaintenancePointDTO[]>([])
+const taskOptions = ref<Option[]>([])
+const userOptions = ref<Option[]>([])
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
@@ -51,6 +57,20 @@ async function loadPoints() {
   try {
     const res: any = await maintenancePointApi.page({ pageNum: 1, pageSize: 200 })
     pointOptions.value = res.list || []
+  } catch {}
+}
+
+async function loadTasks() {
+  try {
+    const res: any = await maintenanceTaskApi.page({ pageNum: 1, pageSize: 200 })
+    taskOptions.value = (res.list || []).map((t: any) => ({ label: t.code, value: t.id }))
+  } catch {}
+}
+
+async function loadUsers() {
+  try {
+    const res: any = await userApi.page({ pageNum: 1, pageSize: 200 })
+    userOptions.value = (res.list || []).map((u: any) => ({ label: u.name, value: u.id }))
   } catch {}
 }
 
@@ -140,6 +160,8 @@ const rules = {
 onMounted(() => {
   loadProjects()
   loadPoints()
+  loadTasks()
+  loadUsers()
   loadData()
 })
 </script>
@@ -242,7 +264,9 @@ onMounted(() => {
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="关联任务">
-              <el-input v-model="form.taskId" placeholder="任务ID" />
+              <el-select v-model="form.taskId" placeholder="请选择任务" clearable filterable style="width: 100%">
+                <el-option v-for="opt in taskOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -261,7 +285,9 @@ onMounted(() => {
           </el-col>
           <el-col :span="12">
             <el-form-item label="记录人">
-              <el-input v-model="form.recorderId" placeholder="记录人ID" />
+              <el-select v-model="form.recorderId" placeholder="请选择记录人" clearable filterable style="width: 100%">
+                <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>
