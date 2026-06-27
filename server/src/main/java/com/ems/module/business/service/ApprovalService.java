@@ -9,6 +9,7 @@ import com.ems.module.business.mapper.*;
 import com.ems.module.system.entity.SysUserRole;
 import com.ems.module.system.mapper.SysUserMapper;
 import com.ems.module.system.mapper.SysUserRoleMapper;
+import com.ems.module.system.service.SysNotificationService;
 import com.ems.security.context.CurrentUser;
 import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class ApprovalService {
     private final QuoteMapper quoteMapper;
     private final SysUserMapper sysUserMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
+    private final SysNotificationService notificationService;
 
     /**
      * 启动审批流程
@@ -116,6 +118,20 @@ public class ApprovalService {
             newLog.setNodeOrder(nextNode.getNodeOrder());
             newLog.setCreateBy(user.getUserId());
             approvalLogMapper.insert(newLog);
+
+            // 通知下一节点审批人(查节点的 approverRoleId,找该角色用户发通知)
+            Long approverRoleId = nextNode.getApproverRoleId();
+            if (approverRoleId != null) {
+                List<SysUserRole> roleUsers = sysUserRoleMapper.selectList(
+                        new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, approverRoleId));
+                for (SysUserRole ur : roleUsers) {
+                    notificationService.send(ur.getUserId(),
+                            "待审批:业务ID " + log.getBusinessId(),
+                            "您有新的审批任务待处理,业务类型: " + log.getBusinessType()
+                                    + ",业务ID: " + log.getBusinessId(),
+                            "APPROVAL", log.getBusinessType(), log.getBusinessId());
+                }
+            }
         } else {
             updateBusinessApprovalStatus(log.getBusinessType(), log.getBusinessId(), "APPROVED");
         }

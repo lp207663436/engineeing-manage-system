@@ -432,3 +432,17 @@ export const approvalApi = {
   flowSaveNodes: (flowId: string, nodes: ApprovalNodeDTO[]) =>
     request.post(`/business/approval/flow/${flowId}/nodes`, nodes),
 }
+
+// ===== 工作台 =====
+export interface WorkbenchVO {
+  pendingApprovals: number
+  pendingAcceptances: number
+  overdueAcceptances: number
+  overdueTasks: number
+  expiringContracts: number
+  pendingSettlements: number
+}
+
+export const workbenchApi = {
+  summary: () => request.get('/business/workbench/summary'),
+}

@@ -6,9 +6,12 @@ import com.ems.common.PageResult;
 import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.entity.MaintenanceContract;
+import com.ems.module.business.entity.Project;
 import com.ems.module.business.entity.QuarterlySettlement;
 import com.ems.module.business.mapper.MaintenanceContractMapper;
+import com.ems.module.business.mapper.ProjectMapper;
 import com.ems.module.business.mapper.QuarterlySettlementMapper;
+import com.ems.module.system.service.SysNotificationService;
 import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,9 +24,10 @@ import java.time.LocalDate;
 @Service
 @RequiredArgsConstructor
 public class QuarterlySettlementService {
-
     private final QuarterlySettlementMapper quarterlySettlementMapper;
     private final MaintenanceContractMapper maintenanceContractMapper;
+    private final ProjectMapper projectMapper;
+    private final SysNotificationService notificationService;
 
     public PageResult<QuarterlySettlement> page(long pageNum, long pageSize, String code, Long contractId,
                                                  Long projectId, String status) {
@@ -133,6 +137,17 @@ public class QuarterlySettlementService {
             s.setStatus("DRAFT");
             s.setCreateBy(currentUserId);
             quarterlySettlementMapper.insert(s);
+        }
+
+        // 通知项目经理(项目的 managerId)
+        if (contract.getProjectId() != null) {
+            Project project = projectMapper.selectById(contract.getProjectId());
+            if (project != null && project.getManagerId() != null) {
+                notificationService.send(project.getManagerId(),
+                        "季度结算单已生成",
+                        "合同 " + contract.getCode() + " 的季度结算单已生成,请查收",
+                        "SETTLEMENT", "QUARTERLY_SETTLEMENT", null);
+            }
         }
     }
 }

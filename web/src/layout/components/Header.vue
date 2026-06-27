@@ -40,6 +40,7 @@ async function handleLogout() {
       </nav>
     </div>
     <div class="header-right">
+      <NotificationBell />
       <el-dropdown @command="handleLogout">
         <div class="user-info">
           <div class="avatar">{{ userStore.name?.charAt(0) || 'U' }}</div>
@@ -67,6 +68,7 @@ async function handleLogout() {
   padding: 0 24px;
 }
 .header-left { display: flex; align-items: center; gap: 16px; }
+.header-right { display: flex; align-items: center; gap: 16px; }
 .toggle-btn {
   background: none;
   border: none;

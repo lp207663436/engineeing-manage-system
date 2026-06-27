@@ -62,3 +62,28 @@ export const deptApi = {
   update: (data: any) => request.put('/sys/dept', data),
   delete: (id: number) => request.delete(`/sys/dept/${id}`),
 }
+
+// ===== 消息通知 =====
+export type NotificationType = 'SETTLEMENT' | 'APPROVAL' | 'OVERDUE' | 'WARRANTY' | 'ACCEPTANCE'
+
+export interface SysNotification {
+  id: string
+  userId: string
+  title: string
+  content: string
+  type: NotificationType
+  businessType?: string
+  businessId?: string
+  isRead: number
+  createTime?: string
+}
+
+export const notificationApi = {
+  page: (params: { pageNum: number; pageSize: number; isRead?: number }) =>
+    request.get('/sys/notification/page', { params }),
+  unread: () => request.get('/sys/notification/unread'),
+  unreadCount: () => request.get('/sys/notification/unread/count'),
+  markRead: (id: string) => request.put(`/sys/notification/${id}/read`),
+  markAllRead: () => request.put('/sys/notification/read-all'),
+  delete: (id: string) => request.delete(`/sys/notification/${id}`),
+}

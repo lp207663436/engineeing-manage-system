@@ -17,9 +17,9 @@ export const staticRoutes: RouteRecordRaw[] = [
     children: [
       {
         path: 'dashboard',
-        name: 'Dashboard',
-        component: () => import('@/views/dashboard/index.vue'),
-        meta: { title: '首页', icon: 'Home' },
+        name: 'Workbench',
+        component: () => import('@/views/dashboard/workbench.vue'),
+        meta: { title: '工作台', icon: 'Home' },
       },
     ],
   },

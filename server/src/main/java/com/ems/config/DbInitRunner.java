@@ -41,6 +41,7 @@ public class DbInitRunner implements CommandLineRunner {
         createApprovalFlowTable();
         createApprovalNodeTable();
         createApprovalLogTable();
+        createSysNotificationTable();
         seedBusinessMenus();
         System.out.println("[DbInitRunner] 业务模块表初始化完成");
     }
@@ -454,6 +455,22 @@ public class DbInitRunner implements CommandLineRunner {
         try { exec("ALTER TABLE quote ADD COLUMN approval_status VARCHAR(20) DEFAULT 'NONE' COMMENT 'NONE/PENDING/APPROVED/REJECTED' AFTER status"); } catch (Exception ignore) {}
     }
 
+    private void createSysNotificationTable() {
+        exec("CREATE TABLE IF NOT EXISTS sys_notification (" +
+                "id BIGINT PRIMARY KEY," +
+                "user_id BIGINT NOT NULL COMMENT '接收人'," +
+                "title VARCHAR(200) NOT NULL COMMENT '标题'," +
+                "content VARCHAR(1000) COMMENT '内容'," +
+                "type VARCHAR(30) COMMENT 'SETTLEMENT/APPROVAL/OVERDUE/WARRANTY/ACCEPTANCE'," +
+                "business_type VARCHAR(30) COMMENT '业务类型'," +
+                "business_id BIGINT COMMENT '业务ID'," +
+                "is_read TINYINT DEFAULT 0 COMMENT '0未读 1已读'," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "INDEX idx_user (user_id, is_read)," +
+                "INDEX idx_type (type)" +
+                ") COMMENT '站内通知表'");
+    }
+
     private void seedBusinessMenus() {
         // 目录与菜单(INSERT IGNORE 幂等)
         String[][] menus = {
@@ -519,7 +536,8 @@ public class DbInitRunner implements CommandLineRunner {
                 {"217", "200", "审批中心", "2", "business:approval:list", "/business/approval", "Stamp", "8"},
                 {"2171", "217", "发起审批", "3", "business:approval:start", "", "", "1"},
                 {"2172", "217", "审批操作", "3", "business:approval:approve", "", "", "2"},
-                {"218", "200", "审批流配置", "2", "business:approval:config", "/business/approval/flow-config", "Setting", "9"}
+                {"218", "200", "审批流配置", "2", "business:approval:config", "/business/approval/flow-config", "Setting", "9"},
+                {"219", "0", "消息通知", "2", "system:notification:list", "", "", "99"}
         };
         for (String[] m : menus) {
             jdbc.update("INSERT IGNORE INTO sys_menu (id, parent_id, name, type, permission, path, icon, sort, status) " +
@@ -532,6 +550,6 @@ public class DbInitRunner implements CommandLineRunner {
         }
         // 给 admin(role_id=1)分配权限,幂等
         jdbc.update("INSERT IGNORE INTO sys_role_menu (role_id, menu_id) " +
-                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2181");
+                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2191");
     }
 }
