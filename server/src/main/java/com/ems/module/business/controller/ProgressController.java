@@ -27,8 +27,9 @@ public class ProgressController {
                                              @RequestParam(required = false) String nodeName,
                                              @RequestParam(required = false) String status,
                                              @RequestParam(required = false) String businessType,
-                                             @RequestParam(required = false) Long businessId) {
-        return Result.success(progressService.page(pageNum, pageSize, code, nodeName, status, businessType, businessId));
+                                             @RequestParam(required = false) Long businessId,
+                                             @RequestParam(required = false) Long projectId) {
+        return Result.success(progressService.page(pageNum, pageSize, code, nodeName, status, businessType, businessId, projectId));
     }
 
     @GetMapping("/{id}")

@@ -43,6 +43,11 @@ public class DbInitRunner implements CommandLineRunner {
         createApprovalLogTable();
         createSysNotificationTable();
         createPreviewLogTable();
+        createCustomerTable();
+        createSupplierTable();
+        createSysDictTable();
+        createSysDictItemTable();
+        createContractChangeTable();
         seedBusinessMenus();
         System.out.println("[DbInitRunner] 业务模块表初始化完成");
     }
@@ -123,6 +128,8 @@ public class DbInitRunner implements CommandLineRunner {
                 "INDEX idx_project (project_id)," +
                 "INDEX idx_business (business_type, business_id)" +
                 ") COMMENT '报价表'");
+        // 补充 version 列(已有表兼容)
+        try { exec("ALTER TABLE quote ADD COLUMN version INT DEFAULT 1 COMMENT '版本号' AFTER status"); } catch (Exception ignore) {}
     }
 
     private void createEquipmentTable() {
@@ -488,6 +495,89 @@ public class DbInitRunner implements CommandLineRunner {
                 ") COMMENT '文件预览日志表'");
     }
 
+    private void createCustomerTable() {
+        exec("CREATE TABLE IF NOT EXISTS customer (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '客户编号'," +
+                "name VARCHAR(200) NOT NULL COMMENT '客户名称'," +
+                "contact_person VARCHAR(100) COMMENT '联系人'," +
+                "contact_phone VARCHAR(50) COMMENT '联系电话'," +
+                "contact_email VARCHAR(100) COMMENT '联系邮箱'," +
+                "address VARCHAR(500) COMMENT '地址'," +
+                "bank_account VARCHAR(100) COMMENT '银行账号'," +
+                "bank_name VARCHAR(100) COMMENT '开户行'," +
+                "remark VARCHAR(500) COMMENT '备注'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_name (name)" +
+                ") COMMENT '客户档案表'");
+    }
+
+    private void createSupplierTable() {
+        exec("CREATE TABLE IF NOT EXISTS supplier (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '供应商编号'," +
+                "name VARCHAR(200) NOT NULL COMMENT '供应商名称'," +
+                "contact_person VARCHAR(100) COMMENT '联系人'," +
+                "contact_phone VARCHAR(50) COMMENT '联系电话'," +
+                "contact_email VARCHAR(100) COMMENT '联系邮箱'," +
+                "address VARCHAR(500) COMMENT '地址'," +
+                "bank_account VARCHAR(100) COMMENT '银行账号'," +
+                "bank_name VARCHAR(100) COMMENT '开户行'," +
+                "remark VARCHAR(500) COMMENT '备注'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "UNIQUE KEY uk_code (code)," +
+                "INDEX idx_name (name)" +
+                ") COMMENT '供应商档案表'");
+    }
+
+    private void createSysDictTable() {
+        exec("CREATE TABLE IF NOT EXISTS sys_dict (" +
+                "id BIGINT PRIMARY KEY," +
+                "code VARCHAR(50) NOT NULL COMMENT '字典编码'," +
+                "name VARCHAR(100) NOT NULL COMMENT '字典名称'," +
+                "remark VARCHAR(500) COMMENT '备注'," +
+                "UNIQUE KEY uk_code (code)" +
+                ") COMMENT '数据字典表'");
+    }
+
+    private void createSysDictItemTable() {
+        exec("CREATE TABLE IF NOT EXISTS sys_dict_item (" +
+                "id BIGINT PRIMARY KEY," +
+                "dict_id BIGINT NOT NULL COMMENT '字典ID'," +
+                "label VARCHAR(100) NOT NULL COMMENT '字典项标签'," +
+                "value VARCHAR(100) NOT NULL COMMENT '字典项值'," +
+                "sort INT DEFAULT 0 COMMENT '排序'," +
+                "INDEX idx_dict (dict_id)" +
+                ") COMMENT '数据字典项表'");
+    }
+
+    private void createContractChangeTable() {
+        exec("CREATE TABLE IF NOT EXISTS contract_change (" +
+                "id BIGINT PRIMARY KEY," +
+                "contract_id BIGINT NOT NULL COMMENT '合同ID'," +
+                "change_type VARCHAR(30) NOT NULL COMMENT 'AMOUNT_CHANGE/SCOPE_CHANGE/TERM_CHANGE/OTHER'," +
+                "change_desc VARCHAR(1000) COMMENT '变更说明'," +
+                "supplement_file_id BIGINT COMMENT '补充附件ID'," +
+                "approver_id BIGINT COMMENT '审核人ID'," +
+                "approve_time DATETIME COMMENT '审核时间'," +
+                "status VARCHAR(20) NOT NULL DEFAULT 'NONE' COMMENT 'NONE/PENDING/APPROVED/REJECTED'," +
+                "remark VARCHAR(500) COMMENT '备注'," +
+                "create_by BIGINT," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "INDEX idx_contract (contract_id)," +
+                "INDEX idx_status (status)" +
+                ") COMMENT '合同变更记录表'");
+    }
+
     private void seedBusinessMenus() {
         // 目录与菜单(INSERT IGNORE 幂等)
         String[][] menus = {
@@ -556,7 +646,24 @@ public class DbInitRunner implements CommandLineRunner {
                 {"218", "200", "审批流配置", "2", "business:approval:config", "/business/approval/flow-config", "Setting", "9"},
                 {"219", "0", "消息通知", "2", "system:notification:list", "", "", "99"},
                 {"220", "0", "报表中心", "2", "business:report:export", "/business/report", "FileSpreadsheet", "6"},
-                {"221", "0", "维保统计", "2", "business:maintenanceStat:list", "/business/maintenance-stat", "BarChart3", "7"}
+                {"221", "0", "维保统计", "2", "business:maintenanceStat:list", "/business/maintenance-stat", "BarChart3", "7"},
+                {"222", "0", "客户档案", "2", "business:customer:list", "/business/customer", "Users", "8"},
+                {"2221", "222", "新增", "3", "business:customer:create", "", "", "1"},
+                {"2222", "222", "编辑", "3", "business:customer:update", "", "", "2"},
+                {"2223", "222", "删除", "3", "business:customer:delete", "", "", "3"},
+                {"223", "0", "供应商档案", "2", "business:supplier:list", "/business/supplier", "Truck", "9"},
+                {"2231", "223", "新增", "3", "business:supplier:create", "", "", "1"},
+                {"2232", "223", "编辑", "3", "business:supplier:update", "", "", "2"},
+                {"2233", "223", "删除", "3", "business:supplier:delete", "", "", "3"},
+                {"224", "0", "数据字典", "2", "system:dict:list", "/system/dict", "BookMarked", "5"},
+                {"2241", "224", "新增", "3", "system:dict:create", "", "", "1"},
+                {"2242", "224", "编辑", "3", "system:dict:update", "", "", "2"},
+                {"2243", "224", "删除", "3", "system:dict:delete", "", "", "3"},
+                {"225", "0", "合同变更", "2", "business:contractChange:list", "/business/contract-change", "FilePenLine", "10"},
+                {"2251", "225", "新增", "3", "business:contractChange:create", "", "", "1"},
+                {"2252", "225", "编辑", "3", "business:contractChange:update", "", "", "2"},
+                {"2253", "225", "删除", "3", "business:contractChange:delete", "", "", "3"},
+                {"2254", "225", "审核", "3", "business:contractChange:audit", "", "", "4"}
         };
         for (String[] m : menus) {
             jdbc.update("INSERT IGNORE INTO sys_menu (id, parent_id, name, type, permission, path, icon, sort, status) " +
@@ -569,6 +676,6 @@ public class DbInitRunner implements CommandLineRunner {
         }
         // 给 admin(role_id=1)分配权限,幂等
         jdbc.update("INSERT IGNORE INTO sys_role_menu (role_id, menu_id) " +
-                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2211");
+                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2254");
     }
 }

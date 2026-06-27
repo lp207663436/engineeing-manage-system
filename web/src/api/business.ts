@@ -124,7 +124,7 @@ export interface ProgressDTO {
 }
 
 export const progressApi = {
-  page: (params: { pageNum: number; pageSize: number; code?: string; nodeName?: string; status?: string; businessType?: string; businessId?: string }) =>
+  page: (params: { pageNum: number; pageSize: number; code?: string; nodeName?: string; status?: string; businessType?: string; businessId?: string; projectId?: string }) =>
     request.get('/business/progress/page', { params }),
   get: (id: string) => request.get(`/business/progress/${id}`),
   create: (data: ProgressDTO) => request.post('/business/progress', data),
@@ -509,4 +509,109 @@ export interface MaintenanceStatVO {
 
 export const maintenanceStatApi = {
   summary: () => request.get('/business/maintenance-stat/summary'),
+}
+
+// ===== 客户档案 =====
+export interface CustomerDTO {
+  id?: string
+  code: string
+  name: string
+  contactPerson?: string
+  contactPhone?: string
+  contactEmail?: string
+  address?: string
+  bankAccount?: string
+  bankName?: string
+  remark?: string
+}
+
+export const customerApi = {
+  page: (params: { pageNum: number; pageSize: number; name?: string; code?: string }) =>
+    request.get('/business/customer/page', { params }),
+  list: () => request.get('/business/customer/list'),
+  get: (id: string) => request.get(`/business/customer/${id}`),
+  create: (data: CustomerDTO) => request.post('/business/customer', data),
+  update: (data: CustomerDTO) => request.put('/business/customer', data),
+  delete: (id: string) => request.delete(`/business/customer/${id}`),
+}
+
+// ===== 供应商档案 =====
+export interface SupplierDTO {
+  id?: string
+  code: string
+  name: string
+  contactPerson?: string
+  contactPhone?: string
+  contactEmail?: string
+  address?: string
+  bankAccount?: string
+  bankName?: string
+  remark?: string
+}
+
+export const supplierApi = {
+  page: (params: { pageNum: number; pageSize: number; name?: string; code?: string }) =>
+    request.get('/business/supplier/page', { params }),
+  list: () => request.get('/business/supplier/list'),
+  get: (id: string) => request.get(`/business/supplier/${id}`),
+  create: (data: SupplierDTO) => request.post('/business/supplier', data),
+  update: (data: SupplierDTO) => request.put('/business/supplier', data),
+  delete: (id: string) => request.delete(`/business/supplier/${id}`),
+}
+
+// ===== 合同变更 =====
+export interface ContractChangeDTO {
+  id?: string
+  contractId: string
+  changeType?: string
+  changeDesc?: string
+  supplementFileId?: string
+  approverId?: string
+  approveTime?: string
+  status?: string
+  remark?: string
+  createTime?: string
+}
+
+export const contractChangeApi = {
+  page: (params: { pageNum: number; pageSize: number; contractId?: string; changeType?: string; status?: string }) =>
+    request.get('/business/contract-change/page', { params }),
+  get: (id: string) => request.get(`/business/contract-change/${id}`),
+  create: (data: ContractChangeDTO) => request.post('/business/contract-change', data),
+  update: (data: ContractChangeDTO) => request.put('/business/contract-change', data),
+  delete: (id: string) => request.delete(`/business/contract-change/${id}`),
+  audit: (id: string, status: string, remark?: string) =>
+    request.post(`/business/contract-change/audit?id=${id}&status=${status}${remark ? `&remark=${encodeURIComponent(remark)}` : ''}`),
+}
+
+// ===== 报价版本对比 =====
+export interface QuoteVersionDTO {
+  id: string
+  code: string
+  projectId?: string
+  businessType?: string
+  businessId?: string
+  amount?: number
+  quoteDate?: string
+  validUntil?: string
+  quotePerson?: string
+  customerName?: string
+  version?: number
+  status?: string
+  approvalStatus?: string
+  summary?: string
+}
+
+export interface QuoteCompareVO {
+  v1: QuoteVersionDTO | null
+  v2: QuoteVersionDTO | null
+  amountDiff: number
+  validUntilDiff: string
+  summaryDiff: boolean
+}
+
+export const quoteVersionApi = {
+  versions: (projectId: string) => request.get('/business/quote/versions', { params: { projectId } }),
+  compare: (projectId: string, v1Id: string, v2Id: string) =>
+    request.get('/business/quote/compare', { params: { projectId, v1Id, v2Id } }),
 }

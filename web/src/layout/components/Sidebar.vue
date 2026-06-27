@@ -39,12 +39,19 @@ const menuGroups = computed(() => {
       { path: '/business/attachment', meta: { title: '附件管理', icon: 'Paperclip' } },
       { path: '/business/report', meta: { title: '报表中心', icon: 'FileSpreadsheet' } },
       { path: '/business/maintenance-stat', meta: { title: '维保统计', icon: 'BarChart3' } },
+      { path: '/business/customer', meta: { title: '客户档案', icon: 'Users' } },
+      { path: '/business/supplier', meta: { title: '供应商档案', icon: 'Truck' } },
+      { path: '/business/contract-change', meta: { title: '合同变更', icon: 'FilePenLine' } },
+      { path: '/business/quote/version-compare', meta: { title: '报价版本对比', icon: 'GitCompare' } },
+      { path: '/business/progress/gantt', meta: { title: '进度甘特图', icon: 'CalendarRange' } },
+      { path: '/business/progress/dashboard', meta: { title: '进度看板', icon: 'KanbanSquare' } },
     ]},
     { path: '/system', meta: { title: '系统管理', icon: 'Settings' }, children: [
       { path: '/system/user', meta: { title: '用户管理', icon: 'User' } },
       { path: '/system/role', meta: { title: '角色管理', icon: 'UserCog' } },
       { path: '/system/menu', meta: { title: '菜单管理', icon: 'Menu' } },
       { path: '/system/dept', meta: { title: '部门管理', icon: 'Building2' } },
+      { path: '/system/dict', meta: { title: '数据字典', icon: 'BookMarked' } },
     ]},
   ]
   return allRoutes

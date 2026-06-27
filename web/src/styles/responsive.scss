@@ -1,0 +1,172 @@
+@use './variables.scss' as *;
+
+// ============================================================
+// 全局响应式样式（移动端适配 < 768px）
+// 约定:窄屏下侧边栏改抽屉、表格横向滚动、表单全宽、内边距收紧
+// ============================================================
+
+$mobile-breakpoint: 768px;
+
+// ---- 1. 布局:侧边栏改抽屉、主区填满宽度 ----
+@media (max-width: $mobile-breakpoint) {
+  // 侧边栏默认隐藏,通过 .mobile-sidebar-open 控制显隐
+  .sidebar {
+    position: fixed !important;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 240px !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 1001;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.16);
+
+    &.is-collapsed { width: 240px !important; }
+    // 由 layout 在移动端通过 .mobile-sidebar-open 显隐
+  }
+
+  // 移动端展开时,侧边栏滑入
+  .layout.is-mobile-open .sidebar {
+    transform: translateX(0);
+  }
+
+  // 遮罩层
+  .layout.is-mobile-open::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1000;
+  }
+
+  // 主区填满宽度
+  .layout-main {
+    margin-left: 0 !important;
+    &.is-collapsed { margin-left: 0 !important; }
+  }
+
+  // 折叠按钮始终可见(用于打开抽屉)
+  .toggle-btn { display: inline-flex !important; }
+}
+
+// ---- 2. 通用页面容器内边距收紧 ----
+@media (max-width: $mobile-breakpoint) {
+  .page { padding: 12px !important; }
+  .page-header {
+    margin-bottom: 12px !important;
+    h1 { font-size: 18px !important; }
+  }
+  .card {
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+    border-radius: 6px !important;
+  }
+  .search-bar { padding: 8px 12px 0 !important; }
+  .toolbar { margin-bottom: 12px !important; }
+  .pagination {
+    justify-content: center !important;
+    margin-top: 12px !important;
+    .el-pagination {
+      --el-pagination-button-width: 28px;
+      font-size: 12px;
+    }
+  }
+}
+
+// ---- 3. 搜索表单:窄屏堆叠为单列 ----
+@media (max-width: $mobile-breakpoint) {
+  .search-bar .el-form--inline {
+    display: flex;
+    flex-direction: column;
+    .el-form-item {
+      margin-right: 0 !important;
+      margin-bottom: 8px;
+      width: 100%;
+      .el-input,
+      .el-select,
+      .el-date-editor { width: 100% !important; }
+    }
+  }
+}
+
+// ---- 4. 表格:窄屏允许横向滚动,操作列不固定以节省宽度 ----
+@media (max-width: $mobile-breakpoint) {
+  .el-table {
+    font-size: 12px;
+    // 表格容器横向滚动(默认 Element 已支持,这里强化)
+    .el-table__inner-wrapper { overflow-x: auto; }
+    .el-table__body-wrapper { overflow-x: auto; }
+  }
+  // 隐藏固定列阴影在窄屏下可能错位,简化为不固定
+  .el-table__fixed,
+  .el-table__fixed-right { display: none; }
+}
+
+// ---- 5. 弹窗 Dialog:窄屏改为全屏底部抽屉式 ----
+@media (max-width: $mobile-breakpoint) {
+  .el-overlay-dialog {
+    display: flex;
+    align-items: flex-end;
+  }
+  .el-dialog {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 12px 12px 0 0 !important;
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+  .el-dialog__header { padding: 14px 16px 10px; }
+  .el-dialog__body { padding: 12px 16px; }
+  .el-dialog__footer { padding: 10px 16px 16px; }
+  // 表单标签上置,输入框全宽
+  .el-dialog .el-form-item__label { float: none; text-align: left; }
+  .el-dialog .el-form-item__content { margin-left: 0 !important; }
+  .el-dialog .el-input,
+  .el-dialog .el-select,
+  .el-dialog .el-date-editor,
+  .el-dialog .el-input-number { width: 100% !important; }
+}
+
+// ---- 6. 工具类与按钮:窄屏紧凑 ----
+@media (max-width: $mobile-breakpoint) {
+  .el-button { padding: 8px 12px; font-size: 13px; }
+  .el-button--small { padding: 6px 10px; }
+  .el-tag { font-size: 12px; }
+  // 隐藏次要操作文字(如表格内"删除"按钮只显示图标)
+  .page .el-table .el-button + .el-button { margin-left: 4px; }
+}
+
+// ---- 7. 看板/统计页面:窄屏单列 ----
+@media (max-width: $mobile-breakpoint) {
+  .dashboard-grid,
+  .stat-cards,
+  .kanban-board {
+    grid-template-columns: 1fr !important;
+  }
+  .kanban-board { overflow-x: auto; }
+}
+
+// ---- 8. 甘特图:窄屏横向滚动 ----
+@media (max-width: $mobile-breakpoint) {
+  .gantt-container { overflow-x: auto; }
+  .gantt-timeline { min-width: 800px; }
+}
+
+// ---- 9. 字典管理左右分栏:窄屏改上下堆叠 ----
+@media (max-width: $mobile-breakpoint) {
+  .dict-layout {
+    flex-direction: column !important;
+    .dict-left,
+    .dict-right { width: 100% !important; }
+  }
+}
+
+// ---- 10. 顶部 Header 内边距 ----
+@media (max-width: $mobile-breakpoint) {
+  .layout-header {
+    padding: 0 12px !important;
+  }
+  .breadcrumb { font-size: 12px; }
+  .username { display: none; }
+}

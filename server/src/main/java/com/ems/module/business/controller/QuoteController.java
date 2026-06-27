@@ -3,6 +3,7 @@ package com.ems.module.business.controller;
 import com.ems.common.PageResult;
 import com.ems.common.Result;
 import com.ems.common.datascope.DataScope;
+import com.ems.module.business.dto.QuoteCompareVO;
 import com.ems.module.business.dto.QuoteDTO;
 import com.ems.module.business.entity.Quote;
 import com.ems.module.business.service.QuoteService;
@@ -10,6 +11,8 @@ import com.ems.security.annotation.RequirePermission;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/business/quote")
@@ -33,6 +36,20 @@ public class QuoteController {
     @RequirePermission("business:quote:list")
     public Result<Quote> get(@PathVariable Long id) {
         return Result.success(quoteService.get(id));
+    }
+
+    @GetMapping("/versions")
+    @RequirePermission("business:quote:list")
+    public Result<List<Quote>> versions(@RequestParam Long projectId) {
+        return Result.success(quoteService.listVersions(projectId));
+    }
+
+    @GetMapping("/compare")
+    @RequirePermission("business:quote:list")
+    public Result<QuoteCompareVO> compare(@RequestParam Long projectId,
+                                          @RequestParam Long v1Id,
+                                          @RequestParam Long v2Id) {
+        return Result.success(quoteService.compareVersions(projectId, v1Id, v2Id));
     }
 
     @PostMapping

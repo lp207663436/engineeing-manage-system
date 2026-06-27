@@ -1,18 +1,44 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Sidebar from './components/Sidebar.vue'
 import Header from './components/Header.vue'
 
 const collapsed = ref(false)
-function toggleSidebar() {
-  collapsed.value = !collapsed.value
+// 移动端抽屉式侧边栏:< 768px 时 toggle 行为改为开/关抽屉
+const isMobile = ref(false)
+const mobileOpen = ref(false)
+
+function syncMobile() {
+  isMobile.value = window.matchMedia('(max-width: 768px)').matches
+  if (!isMobile.value) mobileOpen.value = false
 }
+
+function toggleSidebar() {
+  if (isMobile.value) {
+    mobileOpen.value = !mobileOpen.value
+  } else {
+    collapsed.value = !collapsed.value
+  }
+}
+
+// 路由切换后自动关闭移动端抽屉
+const route = useRoute()
+watch(() => route.path, () => { mobileOpen.value = false })
+
+onMounted(() => {
+  syncMobile()
+  window.addEventListener('resize', syncMobile)
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', syncMobile)
+})
 </script>
 
 <template>
-  <div class="layout">
+  <div class="layout" :class="{ 'is-mobile-open': isMobile && mobileOpen }">
     <Sidebar :collapsed="collapsed" />
-    <div class="layout-main" :class="{ 'is-collapsed': collapsed }">
+    <div class="layout-main" :class="{ 'is-collapsed': collapsed && !isMobile }">
       <Header :collapsed="collapsed" @toggle="toggleSidebar" />
       <div class="layout-content">
         <router-view v-slot="{ Component }">

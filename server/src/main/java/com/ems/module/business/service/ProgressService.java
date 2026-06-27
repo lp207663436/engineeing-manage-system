@@ -23,13 +23,14 @@ public class ProgressService {
     private final ProgressMapper progressMapper;
 
     public PageResult<Progress> page(long pageNum, long pageSize, String code, String nodeName, String status,
-                                     String businessType, Long businessId) {
+                                     String businessType, Long businessId, Long projectId) {
         LambdaQueryWrapper<Progress> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(code)) wrapper.like(Progress::getCode, code);
         if (StringUtils.hasText(nodeName)) wrapper.like(Progress::getNodeName, nodeName);
         if (StringUtils.hasText(status)) wrapper.eq(Progress::getStatus, status);
         if (StringUtils.hasText(businessType)) wrapper.eq(Progress::getBusinessType, businessType);
         if (businessId != null) wrapper.eq(Progress::getBusinessId, businessId);
+        if (projectId != null) wrapper.eq(Progress::getProjectId, projectId);
         DataScopeHelper.applyTo(wrapper);
         wrapper.orderByDesc(Progress::getCreateTime);
         Page<Progress> page = progressMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
