@@ -42,6 +42,7 @@ public class CustomerService {
     public Customer get(Long id) {
         Customer c = customerMapper.selectById(id);
         if (c == null) throw new BusinessException("客户不存在");
+        DataScopeHelper.checkOwnership(c.getCreateBy());
         return c;
     }
 
@@ -55,12 +56,14 @@ public class CustomerService {
 
     public void update(CustomerDTO dto) {
         Customer existing = get(dto.getId());
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         BeanUtils.copyProperties(dto, existing);
         customerMapper.updateById(existing);
     }
 
     public void delete(Long id) {
-        get(id);
+        Customer existing = get(id);
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         customerMapper.deleteById(id);
     }
 }

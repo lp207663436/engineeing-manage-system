@@ -17,12 +17,14 @@ const breadcrumb = computed(() => {
   return matched
 })
 
-async function handleLogout() {
-  try {
-    await ElMessageBox.confirm('确定退出登录吗?', '提示', { type: 'warning' })
-    await userStore.logout()
-    router.push('/login')
-  } catch {}
+async function handleCommand(cmd: string) {
+  if (cmd === 'logout') {
+    try {
+      await ElMessageBox.confirm('确定退出登录吗?', '提示', { type: 'warning' })
+      await userStore.logout()
+      router.push('/login')
+    } catch {}
+  }
 }
 </script>
 
@@ -41,7 +43,7 @@ async function handleLogout() {
     </div>
     <div class="header-right">
       <NotificationBell />
-      <el-dropdown @command="handleLogout">
+      <el-dropdown @command="handleCommand">
         <div class="user-info">
           <div class="avatar">{{ userStore.name?.charAt(0) || 'U' }}</div>
           <span class="username">{{ userStore.name || userStore.username || '用户' }}</span>

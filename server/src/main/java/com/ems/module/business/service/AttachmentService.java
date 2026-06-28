@@ -34,6 +34,8 @@ public class AttachmentService {
         LambdaQueryWrapper<Attachment> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(businessType)) wrapper.eq(Attachment::getBusinessType, businessType);
         if (businessId != null) wrapper.eq(Attachment::getBusinessId, businessId);
+        // 应用数据权限过滤(修复27:listByBusiness 未应用数据权限)
+        DataScopeHelper.applyTo(wrapper);
         wrapper.orderByDesc(Attachment::getCreateTime);
         return attachmentMapper.selectList(wrapper);
     }

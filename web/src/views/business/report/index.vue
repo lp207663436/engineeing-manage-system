@@ -2,6 +2,12 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { reportApi } from '@/api/business'
+import { FolderKanban, Banknote, ListTree, Wrench, Receipt } from 'lucide-vue-next'
+
+// 图标映射:将字符串 icon 名映射为组件
+const iconMap: Record<string, any> = {
+  FolderKanban, Banknote, ListTree, Wrench, Receipt,
+}
 
 interface ReportItem {
   key: string
@@ -106,7 +112,8 @@ async function handleExport(item: ReportItem) {
       >
         <div class="card-top">
           <div class="card-icon" :style="{ background: item.color + '1A', color: item.color }">
-            {{ item.name.charAt(0) }}
+            <component :is="iconMap[item.icon]" v-if="iconMap[item.icon]" :size="20" />
+            <span v-else>{{ item.name.charAt(0) }}</span>
           </div>
           <div class="card-title">{{ item.name }}</div>
         </div>

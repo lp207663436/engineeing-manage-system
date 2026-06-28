@@ -39,8 +39,8 @@ const isEdit = ref(false)
 // 提交结论弹窗
 const resultVisible = ref(false)
 const resultFormRef = ref<FormInstance>()
-const resultForm = reactive<{ id: string; code: string; result: string; remark: string }>({
-  id: '', code: '', result: 'PASS', remark: '',
+const resultForm = reactive<{ id: string; code: string; result: string; remark: string; rectifyCount: number }>({
+  id: '', code: '', result: 'PASS', remark: '', rectifyCount: 0,
 })
 
 const businessTypeMap: Record<string, string> = { NEW_BUILD: '新建工程', MAINTENANCE_POINT: '维护点位' }
@@ -151,7 +151,10 @@ async function handleDelete(row: Acceptance) {
 }
 
 function handleOpenResult(row: Acceptance) {
-  Object.assign(resultForm, { id: row.id || '', code: row.code, result: 'PASS', remark: '' })
+  Object.assign(resultForm, {
+    id: row.id || '', code: row.code, result: 'PASS', remark: '',
+    rectifyCount: row.rectifyCount || 0,
+  })
   resultVisible.value = true
 }
 
@@ -176,11 +179,18 @@ function formatRectify(count: number) {
   return `${c}/${MAX_RECTIFY}`
 }
 
+// 根据验收人 ID 查找名称
+function acceptorName(id?: string) {
+  if (!id) return '-'
+  return userOptions.value.find((u) => u.value === id)?.label || id
+}
+
 const rules = {
   code: [{ required: true, message: '请输入验收编号', trigger: 'blur' }],
   projectId: [{ required: true, message: '请选择所属项目', trigger: 'change' }],
   acceptorId: [{ required: true, message: '请选择验收人', trigger: 'change' }],
   acceptDate: [{ required: true, message: '请选择验收日期', trigger: 'change' }],
+  actualQuantity: [{ required: true, message: '请输入实际工程量', trigger: 'blur' }],
 }
 
 const resultRules = {
@@ -240,7 +250,9 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="acceptDate" label="验收日期" min-width="120" />
-        <el-table-column prop="acceptorId" label="验收人ID" min-width="120" />
+        <el-table-column label="验收人" min-width="120">
+          <template #default="{ row }">{{ acceptorName(row.acceptorId) }}</template>
+        </el-table-column>
         <el-table-column prop="actualQuantity" label="实际工程量" min-width="120" />
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
         <el-table-column label="操作" width="220" fixed="right">
@@ -297,7 +309,7 @@ onMounted(() => {
         <el-form-item label="验收日期" prop="acceptDate">
           <el-date-picker v-model="form.acceptDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="实际工程量">
+        <el-form-item label="实际工程量" prop="actualQuantity">
           <el-input v-model="form.actualQuantity" placeholder="实际工程量" />
         </el-form-item>
         <el-form-item label="备注">
@@ -318,8 +330,21 @@ onMounted(() => {
         <el-form-item label="结论" prop="result">
           <el-select v-model="resultForm.result" style="width: 100%">
             <el-option label="通过" value="PASS" />
-            <el-option label="不通过" value="FAIL" />
+            <el-option label="不通过(需整改)" value="FAIL" />
+            <el-option label="整改中" value="RECTIFYING" />
+            <el-option label="转仲裁" value="ARBITRATION" />
           </el-select>
+        </el-form-item>
+        <el-form-item v-if="resultForm.result === 'FAIL'" label="整改次数">
+          <span>{{ resultForm.rectifyCount }} / {{ MAX_RECTIFY }}</span>
+          <el-alert
+            v-if="resultForm.rectifyCount >= MAX_RECTIFY"
+            title="整改次数已达上限，将自动转为仲裁"
+            type="warning"
+            :closable="false"
+            show-icon
+            style="margin-left: 12px; flex: 1"
+          />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="resultForm.remark" type="textarea" :rows="3" placeholder="结论备注" />

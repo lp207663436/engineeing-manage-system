@@ -21,12 +21,15 @@ import com.ems.module.system.mapper.SysUserRoleMapper;
 import com.ems.module.system.service.SysNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 通知定时扫描任务。
@@ -49,18 +52,40 @@ public class NotificationScheduler {
     private final ApprovalLogMapper approvalLogMapper;
     private final ApprovalNodeMapper approvalNodeMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    /** 分布式锁 key */
+    private static final String LOCK_KEY = "scheduler:notification:lock";
+    /** 锁持有时间(秒),防止任务执行过长导致死锁 */
+    private static final long LOCK_TIMEOUT_SECONDS = 600;
 
     @Scheduled(cron = "0 0 9 * * ?")
     public void execute() {
-        scanOverdueAcceptance();
-        scanExpiringContracts();
-        scanOverduePayments();
-        scanPendingApprovals();
+        // 分布式锁:防止多实例并发执行(SET key value NX EX timeout)
+        String lockValue = UUID.randomUUID().toString();
+        Boolean acquired = stringRedisTemplate.opsForValue().setIfAbsent(
+                LOCK_KEY, lockValue, Duration.ofSeconds(LOCK_TIMEOUT_SECONDS));
+        if (Boolean.FALSE.equals(acquired)) {
+            log.info("[NotificationScheduler] 其他实例正在执行,跳过本次调度");
+            return;
+        }
+        try {
+            scanOverdueAcceptance();
+            scanExpiringContracts();
+            scanOverduePayments();
+            scanPendingApprovals();
+        } finally {
+            // 释放锁:仅当 value 匹配时才删除,避免误删他人持有的锁
+            String currentValue = stringRedisTemplate.opsForValue().get(LOCK_KEY);
+            if (lockValue.equals(currentValue)) {
+                stringRedisTemplate.delete(LOCK_KEY);
+            }
+        }
     }
 
     /**
      * 验收催办:超期未处理(PENDING 且创建超过 7 天)
-     * 去重:3 天内已发过相同通知则跳过
+     * 去重:7 天内已发过相同通知则跳过
      */
     private void scanOverdueAcceptance() {
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
@@ -74,14 +99,14 @@ public class NotificationScheduler {
                 if (a.getAcceptorId() == null) {
                     continue;
                 }
-                // 催办去重:3 天内已发过相同通知则跳过
+                // 催办去重:7 天内已发过相同通知则跳过
                 Long existCount = notificationMapper.selectCount(
                         new LambdaQueryWrapper<SysNotification>()
                                 .eq(SysNotification::getUserId, a.getAcceptorId())
                                 .eq(SysNotification::getBusinessType, "ACCEPTANCE")
                                 .eq(SysNotification::getBusinessId, a.getId())
                                 .eq(SysNotification::getType, "ACCEPTANCE")
-                                .ge(SysNotification::getCreateTime, LocalDateTime.now().minusDays(3)));
+                                .ge(SysNotification::getCreateTime, LocalDateTime.now().minusDays(7)));
                 if (existCount != null && existCount > 0) {
                     continue;
                 }

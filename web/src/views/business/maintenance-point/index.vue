@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { maintenancePointApi, projectApi, type MaintenancePointDTO } from '@/api/business'
+import { maintenancePointApi, projectApi, equipmentApi, type MaintenancePointDTO } from '@/api/business'
 import { userApi } from '@/api/system'
 
 interface Option { label: string; value: string }
@@ -12,6 +12,9 @@ interface MaintenancePoint extends MaintenancePointDTO {
 
 const projectOptions = ref<Option[]>([])
 const userOptions = ref<Option[]>([])
+const equipmentOptions = ref<Option[]>([])
+// 多选设备 ID 数组(表单用,提交时转为逗号分隔字符串)
+const selectedEquipmentIds = ref<string[]>([])
 
 const loading = ref(false)
 const tableData = ref<MaintenancePoint[]>([])
@@ -67,6 +70,7 @@ function handleAdd() {
     id: undefined, code: '', projectId: undefined, name: '', location: '', equipmentList: '',
     managerId: undefined, status: 'WAITING_QUOTE',
   })
+  selectedEquipmentIds.value = []
   dialogVisible.value = true
 }
 
@@ -78,6 +82,10 @@ function handleEdit(row: MaintenancePoint) {
     location: row.location, equipmentList: row.equipmentList,
     managerId: row.managerId, status: row.status,
   })
+  // 将逗号分隔的设备列表字符串转为数组
+  selectedEquipmentIds.value = row.equipmentList
+    ? row.equipmentList.split(',').map((s: string) => s.trim()).filter(Boolean)
+    : []
   dialogVisible.value = true
 }
 
@@ -86,6 +94,8 @@ async function handleSubmit() {
   await formRef.value.validate(async (valid) => {
     if (!valid) return
     try {
+      // 将多选设备 ID 数组转为逗号分隔字符串
+      form.equipmentList = selectedEquipmentIds.value.join(',')
       if (isEdit.value) {
         await maintenancePointApi.update(form)
         ElMessage.success('更新成功')
@@ -117,12 +127,14 @@ const rules = {
 
 async function loadOptions() {
   try {
-    const [proj, users] = await Promise.all([
+    const [proj, users, equipments] = await Promise.all([
       projectApi.page({ pageNum: 1, pageSize: 200 }),
       userApi.page({ pageNum: 1, pageSize: 200 }),
+      equipmentApi.page({ pageNum: 1, pageSize: 200 }),
     ]) as any[]
     projectOptions.value = (proj.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
     userOptions.value = (users.list || []).map((u: any) => ({ label: u.name, value: u.id }))
+    equipmentOptions.value = (equipments.list || []).map((e: any) => ({ label: `${e.code} ${e.name}`, value: e.id }))
   } catch {}
 }
 
@@ -130,6 +142,15 @@ async function loadOptions() {
 function managerName(id?: string) {
   if (!id) return '-'
   return userOptions.value.find((u) => u.value === id)?.label || id
+}
+
+// 根据设备 ID 列表(逗号分隔字符串)查找名称
+function equipmentNames(list?: string) {
+  if (!list) return '-'
+  return list.split(',').map((id: string) => {
+    const idStr = id.trim()
+    return equipmentOptions.value.find((e) => e.value === idStr)?.label || idStr
+  }).join(', ')
 }
 
 onMounted(() => {
@@ -177,7 +198,9 @@ onMounted(() => {
         <el-table-column prop="code" label="点位编号" min-width="130" />
         <el-table-column prop="name" label="点位名称" min-width="160" />
         <el-table-column prop="location" label="位置" min-width="160" />
-        <el-table-column prop="equipmentList" label="设备清单" min-width="180" />
+        <el-table-column label="设备清单" min-width="180">
+          <template #default="{ row }">{{ equipmentNames(row.equipmentList) }}</template>
+        </el-table-column>
         <el-table-column label="状态" width="110">
           <template #default="{ row }">
             <el-tag :type="statusTagType[row.status] || 'info'" size="small" effect="light">
@@ -226,7 +249,18 @@ onMounted(() => {
           <el-input v-model="form.location" placeholder="请输入位置" />
         </el-form-item>
         <el-form-item label="设备清单">
-          <el-input v-model="form.equipmentList" type="textarea" :rows="3" placeholder="设备清单" />
+          <el-select
+            v-model="selectedEquipmentIds"
+            multiple
+            filterable
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="请选择关联设备"
+            style="width: 100%"
+          >
+            <el-option v-for="opt in equipmentOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="负责人" prop="managerId">
           <el-select v-model="form.managerId" placeholder="请选择负责人" clearable filterable style="width: 100%">

@@ -72,15 +72,16 @@ async function handleDelete(row: any) {
 async function handleAssignMenus(row: any) {
   currentRoleId.value = row.id
   menuTree.value = await menuApi.tree()
-  const ids: string[] = await roleApi.getMenuIds(currentRoleId.value)
-  checkedMenuIds.value = ids
+  const ids: number[] = await roleApi.getMenuIds(currentRoleId.value)
+  checkedMenuIds.value = ids.map((id: number) => String(id))
   menuDialogVisible.value = true
 }
 
 async function handleAssignSubmit() {
   const tree = (treeRef.value as any)?.getCheckedKeys() || []
   const halfChecked = (treeRef.value as any)?.getHalfCheckedKeys() || []
-  await roleApi.update({ id: currentRoleId.value, name: '', code: '', menuIds: [...tree, ...halfChecked] } as any)
+  const menuIds = [...tree, ...halfChecked].map((id: string | number) => Number(id))
+  await roleApi.assignMenus(currentRoleId.value, menuIds)
   ElMessage.success('分配成功')
   menuDialogVisible.value = false
 }
@@ -91,7 +92,7 @@ const rules = {
   code: [{ required: true, message: '请输入角色编码', trigger: 'blur' }],
 }
 
-const dataScopeMap: Record<number, string> = { 1: '全部', 2: '本部门', 3: '本人', 4: '本部门及下属' }
+const dataScopeMap: Record<number, string> = { 1: '全部', 2: '本部门', 3: '本部门及下属', 4: '本人' }
 
 onMounted(loadData)
 </script>

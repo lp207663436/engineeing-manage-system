@@ -40,6 +40,7 @@ public class ProgressService {
     public Progress get(Long id) {
         Progress p = progressMapper.selectById(id);
         if (p == null) throw new BusinessException("进度不存在");
+        DataScopeHelper.checkOwnership(p.getCreateBy());
         return p;
     }
 
@@ -61,6 +62,7 @@ public class ProgressService {
 
     public void update(ProgressDTO dto) {
         Progress existing = get(dto.getId());
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         BeanUtils.copyProperties(dto, existing);
         if (StringUtils.hasText(dto.getPlanStartDate())) existing.setPlanStartDate(LocalDate.parse(dto.getPlanStartDate()));
         if (StringUtils.hasText(dto.getPlanEndDate())) existing.setPlanEndDate(LocalDate.parse(dto.getPlanEndDate()));
@@ -70,7 +72,8 @@ public class ProgressService {
     }
 
     public void delete(Long id) {
-        get(id);
+        Progress existing = get(id);
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         progressMapper.deleteById(id);
     }
 }

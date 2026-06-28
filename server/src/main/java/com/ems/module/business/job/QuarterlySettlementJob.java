@@ -32,7 +32,8 @@ public class QuarterlySettlementJob {
         log.info("[QuarterlySettlementJob] 扫描生效合同数:{}", contracts.size());
         for (MaintenanceContract contract : contracts) {
             try {
-                quarterlySettlementService.generateForContract(contract.getId());
+                // Job 调用只生成已结束期次(periodEndDate == yesterday)
+                quarterlySettlementService.generateForContract(contract.getId(), true);
             } catch (Exception e) {
                 // 单个合同失败只日志不中断后续合同处理
                 log.error("合同[{}]生成结算单失败", contract.getId(), e);

@@ -2,6 +2,7 @@ package com.ems.module.business.controller;
 
 import com.ems.common.PageResult;
 import com.ems.common.Result;
+import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.ApprovalDTO;
 import com.ems.module.business.entity.ApprovalFlow;
 import com.ems.module.business.entity.ApprovalLog;
@@ -41,7 +42,7 @@ public class ApprovalController {
     @RequirePermission("business:approval:list")
     public Result<List<ApprovalLog>> pending() {
         CurrentUser user = SecurityContext.get();
-        if (user == null) throw new RuntimeException("未登录");
+        if (user == null) throw new BusinessException(401, "未登录");
         return Result.success(approvalService.getPending(user.getUserId()));
     }
 
@@ -49,7 +50,7 @@ public class ApprovalController {
     @RequirePermission("business:approval:list")
     public Result<List<ApprovalLog>> history() {
         CurrentUser user = SecurityContext.get();
-        if (user == null) throw new RuntimeException("未登录");
+        if (user == null) throw new BusinessException(401, "未登录");
         return Result.success(approvalService.getHistory(user.getUserId()));
     }
 

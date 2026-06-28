@@ -93,7 +93,7 @@ async function loadData() {
 // 加载用户列表用于处理人名称展示
 async function loadUsers() {
   try {
-    const res: any = await userApi.page({ pageNum: 1, pageSize: 999 })
+    const res: any = await userApi.page({ pageNum: 1, pageSize: 200 })
     userOptions.value = (res.list || []).map((u: any) => ({ label: u.name || u.username, value: u.id }))
   } catch {}
 }

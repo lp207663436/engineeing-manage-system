@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { equipmentApi, projectApi, maintenancePointApi, type EquipmentDTO } from '@/api/business'
+import { dictApi } from '@/api/system'
 
 interface Option { label: string; value: string }
 
@@ -35,7 +36,20 @@ const statusMap: Record<string, string> = {
 const statusTagType: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
   NORMAL: 'success', FAULT: 'danger', REPAIRING: 'warning', SCRAPPED: 'info',
 }
-const categoryOptions = ['门禁', '监控', '网络', '楼控', '消防', '广播', '其他']
+// 设备分类:优先从数据字典加载,字典不存在时使用硬编码兜底
+// TODO: 确认后端字典 equipment_category 是否已配置,配置后移除硬编码
+const categoryOptions = ref<string[]>(['门禁', '监控', '网络', '楼控', '消防', '广播', '其他'])
+
+async function loadCategoryOptions() {
+  try {
+    const res: any = await dictApi.itemsByCode('equipment_category')
+    if (res && Array.isArray(res) && res.length > 0) {
+      categoryOptions.value = res.map((item: any) => item.label || item.name || item.value)
+    }
+  } catch {
+    // 字典未配置时保留硬编码
+  }
+}
 
 async function loadData() {
   loading.value = true
@@ -129,6 +143,7 @@ async function loadOptions() {
 }
 
 onMounted(() => {
+  loadCategoryOptions()
   loadOptions()
   loadData()
 })

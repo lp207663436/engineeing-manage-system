@@ -1,6 +1,8 @@
 package com.ems.module.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ems.common.datascope.DataScopeHelper;
+import com.ems.common.exception.BusinessException;
 import com.ems.module.system.entity.SysMenu;
 import com.ems.module.system.entity.SysRoleMenu;
 import com.ems.module.system.entity.SysUserRole;
@@ -80,10 +82,24 @@ public class SysMenuService {
     }
 
     public void update(SysMenu menu) {
+        SysMenu existing = menuMapper.selectById(menu.getId());
+        if (existing == null) throw new BusinessException("菜单不存在");
+        // 水平越权校验
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         menuMapper.updateById(menu);
     }
 
     public void delete(Long id) {
+        // 删除前检查是否有子菜单,有则禁止删除
+        Long childCount = menuMapper.selectCount(
+                new LambdaQueryWrapper<SysMenu>().eq(SysMenu::getParentId, id));
+        if (childCount != null && childCount > 0) {
+            throw new BusinessException("请先删除子菜单");
+        }
+        SysMenu existing = menuMapper.selectById(id);
+        if (existing == null) throw new BusinessException("菜单不存在");
+        // 水平越权校验
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         menuMapper.deleteById(id);
     }
 }

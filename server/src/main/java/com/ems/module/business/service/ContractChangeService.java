@@ -1,6 +1,7 @@
 package com.ems.module.business.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
 import com.ems.common.datascope.DataScopeHelper;
@@ -8,8 +9,10 @@ import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.ContractChangeDTO;
 import com.ems.module.business.entity.Contract;
 import com.ems.module.business.entity.ContractChange;
+import com.ems.module.business.entity.QuarterlySettlement;
 import com.ems.module.business.mapper.ContractChangeMapper;
 import com.ems.module.business.mapper.ContractMapper;
+import com.ems.module.business.mapper.QuarterlySettlementMapper;
 import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -18,7 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +32,7 @@ public class ContractChangeService {
 
     private final ContractChangeMapper contractChangeMapper;
     private final ContractMapper contractMapper;
+    private final QuarterlySettlementMapper quarterlySettlementMapper;
 
     public PageResult<ContractChange> page(long pageNum, long pageSize, Long contractId, String changeType, String status) {
         LambdaQueryWrapper<ContractChange> wrapper = new LambdaQueryWrapper<>();
@@ -41,6 +48,7 @@ public class ContractChangeService {
     public ContractChange get(Long id) {
         ContractChange c = contractChangeMapper.selectById(id);
         if (c == null) throw new BusinessException("合同变更记录不存在");
+        DataScopeHelper.checkOwnership(c.getCreateBy());
         return c;
     }
 
@@ -62,6 +70,7 @@ public class ContractChangeService {
 
     public void update(ContractChangeDTO dto) {
         ContractChange existing = get(dto.getId());
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         if ("APPROVED".equals(existing.getStatus()))
             throw new BusinessException("已审核通过的记录不可修改");
         // REJECTED 状态允许修改并重新提交(状态回到 PENDING)
@@ -76,6 +85,7 @@ public class ContractChangeService {
     public void delete(Long id) {
         ContractChange existing = get(id);
         if ("APPROVED".equals(existing.getStatus())) throw new BusinessException("已审核通过的变更不可删除");
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         contractChangeMapper.deleteById(id);
     }
 
@@ -114,6 +124,8 @@ public class ContractChangeService {
             if (contract != null) {
                 if ("AMOUNT".equals(existing.getChangeField()) && existing.getNewAmount() != null) {
                     contract.setAmount(existing.getNewAmount());
+                    // 维保合同金额变更:从下一期起按新金额重算 QuarterlySettlement.amount,递增 amountVersion,当期保持旧金额
+                    recalcQuarterlySettlements(existing.getContractId(), existing.getNewAmount());
                 } else if ("START_DATE".equals(existing.getChangeField()) && existing.getNewDate() != null) {
                     contract.setStartDate(existing.getNewDate());
                 } else if ("END_DATE".equals(existing.getChangeField()) && existing.getNewDate() != null) {
@@ -121,6 +133,67 @@ public class ContractChangeService {
                 }
                 contractMapper.updateById(contract);
             }
+        }
+    }
+
+    /**
+     * 维保合同金额变更后,从下一期起按新金额重算 QuarterlySettlement.amount,
+     * 递增 amountVersion,当期保持旧金额。
+     */
+    private void recalcQuarterlySettlements(Long contractId, BigDecimal newAmount) {
+        List<QuarterlySettlement> settlements = quarterlySettlementMapper.selectList(
+                new LambdaQueryWrapper<QuarterlySettlement>()
+                        .eq(QuarterlySettlement::getContractId, contractId)
+                        .orderByAsc(QuarterlySettlement::getPeriodNo));
+        if (settlements.isEmpty()) return;
+
+        LocalDate today = LocalDate.now();
+        int totalPeriods = settlements.size();
+
+        // 找到当前期(今天在 periodStartDate 和 periodEndDate 之间)
+        int currentPeriodIndex = -1;
+        for (int i = 0; i < settlements.size(); i++) {
+            QuarterlySettlement s = settlements.get(i);
+            if ((s.getPeriodStartDate() == null || !today.isBefore(s.getPeriodStartDate()))
+                    && (s.getPeriodEndDate() == null || !today.isAfter(s.getPeriodEndDate()))) {
+                currentPeriodIndex = i;
+                break;
+            }
+        }
+        // 找不到当前期(所有期次都已结束或都未开始),不重算
+        if (currentPeriodIndex == -1) return;
+        // 没有后续期次,不重算
+        if (currentPeriodIndex + 1 >= settlements.size()) return;
+
+        // 新的单期金额 = 新总额 / 总期数(保留2位)
+        BigDecimal newBaseAmount = newAmount.divide(BigDecimal.valueOf(totalPeriods), 2, RoundingMode.HALF_UP);
+
+        // 计算不变期(当期及之前)的金额之和
+        BigDecimal unchangedSum = BigDecimal.ZERO;
+        for (int i = 0; i <= currentPeriodIndex; i++) {
+            BigDecimal amt = settlements.get(i).getAmount();
+            unchangedSum = unchangedSum.add(amt == null ? BigDecimal.ZERO : amt);
+        }
+
+        // 重算后续期次
+        int futureCount = settlements.size() - currentPeriodIndex - 1;
+        for (int i = currentPeriodIndex + 1; i < settlements.size(); i++) {
+            QuarterlySettlement s = settlements.get(i);
+            Integer oldVersion = s.getAmountVersion() == null ? 0 : s.getAmountVersion();
+            BigDecimal amount;
+            if (i == settlements.size() - 1) {
+                // 最后一期吸纳尾差:总额 - 不变期之和 - 前面重算期之和
+                BigDecimal recalcedPrevSum = newBaseAmount.multiply(BigDecimal.valueOf(futureCount - 1));
+                amount = newAmount.subtract(unchangedSum).subtract(recalcedPrevSum);
+            } else {
+                amount = newBaseAmount;
+            }
+            quarterlySettlementMapper.update(null,
+                    new LambdaUpdateWrapper<QuarterlySettlement>()
+                            .eq(QuarterlySettlement::getId, s.getId())
+                            .eq(QuarterlySettlement::getAmountVersion, oldVersion)
+                            .set(QuarterlySettlement::getAmount, amount)
+                            .set(QuarterlySettlement::getAmountVersion, oldVersion + 1));
         }
     }
 }

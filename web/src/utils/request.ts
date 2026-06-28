@@ -27,6 +27,10 @@ service.interceptors.request.use(
 
 service.interceptors.response.use(
   (response: AxiosResponse) => {
+    // 二进制流(文件下载等)直接返回原始 data,不走业务码解包
+    if (response.config.responseType === 'blob' || response.config.responseType === 'arraybuffer') {
+      return response.data
+    }
     const { code, message, data } = response.data
     if (code === 200) return data
     if (code === 401) {
@@ -35,6 +39,10 @@ service.interceptors.response.use(
       // 使用 SPA 路由跳转,避免整页刷新丢失应用状态
       router.push('/login')
       return Promise.reject(new Error(message))
+    }
+    if (code === 403) {
+      router.push('/403')
+      return Promise.reject(new Error(message || '无权限'))
     }
     ElMessage.error(message || '请求失败')
     return Promise.reject(new Error(message))
@@ -45,6 +53,10 @@ service.interceptors.response.use(
       ElMessage.error(error.response?.data?.message || '未登录')
       clearUserStorage()
       router.push('/login')
+      return Promise.reject(error)
+    }
+    if (status === 403) {
+      router.push('/403')
       return Promise.reject(error)
     }
     const msg = error.response?.data?.message || error.message || '网络错误'

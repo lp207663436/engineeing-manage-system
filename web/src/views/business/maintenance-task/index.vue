@@ -60,8 +60,8 @@ const form = reactive<MaintenanceTaskDTO>({
 const isEdit = ref(false)
 
 type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
-const typeMap: Record<string, string> = { INSPECTION: '巡检', REPAIR: '故障维修' }
-const typeTagType: Record<string, TagType> = { INSPECTION: 'primary', REPAIR: 'warning' }
+const typeMap: Record<string, string> = { INSPECTION: '巡检', REPAIR: '故障维修', MAINTENANCE: '保养' }
+const typeTagType: Record<string, TagType> = { INSPECTION: 'primary', REPAIR: 'warning', MAINTENANCE: 'success' }
 const statusMap: Record<string, string> = {
   PENDING: '待派单',
   ASSIGNED: '已派单',
@@ -407,9 +407,10 @@ onMounted(async () => {
           </el-col>
           <el-col :span="12">
             <el-form-item label="任务状态">
-              <el-select v-model="form.status" style="width: 100%">
-                <el-option v-for="(label, key) in statusMap" :key="key" :label="label" :value="key" />
-              </el-select>
+              <el-tag :type="statusTagType[form.status || ''] || 'info'" size="small" effect="light">
+                {{ statusMap[form.status || ''] || form.status || '-' }}
+              </el-tag>
+              <span style="margin-left: 8px; color: #909399; font-size: 12px">状态由系统流转控制</span>
             </el-form-item>
           </el-col>
         </el-row>

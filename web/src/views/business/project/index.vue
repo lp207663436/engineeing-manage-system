@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { projectApi, type ProjectDTO } from '@/api/business'
+import { projectApi, customerApi, type ProjectDTO } from '@/api/business'
 import { userApi } from '@/api/system'
 
 interface Option { label: string; value: string }
@@ -11,6 +11,7 @@ interface Project extends ProjectDTO {
 }
 
 const userOptions = ref<Option[]>([])
+const customerOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<Project[]>([])
@@ -21,7 +22,7 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const formRef = ref<FormInstance>()
 const form = reactive<ProjectDTO>({
-  code: '', name: '', customerName: '', managerId: undefined, address: '',
+  code: '', name: '', customerId: undefined, customerName: '', managerId: undefined, address: '',
   startDate: '', endDate: '', type: 'NEW_BUILD', status: 'DRAFT', description: '',
 })
 const isEdit = ref(false)
@@ -61,7 +62,7 @@ function handleAdd() {
   isEdit.value = false
   dialogTitle.value = '新增项目'
   Object.assign(form, {
-    id: undefined, code: '', name: '', customerName: '', managerId: undefined, address: '',
+    id: undefined, code: '', name: '', customerId: undefined, customerName: '', managerId: undefined, address: '',
     startDate: '', endDate: '', type: 'NEW_BUILD', status: 'DRAFT', description: '',
   })
   dialogVisible.value = true
@@ -71,9 +72,9 @@ function handleEdit(row: Project) {
   isEdit.value = true
   dialogTitle.value = '编辑项目'
   Object.assign(form, {
-    id: row.id, code: row.code, name: row.name, customerName: row.customerName,
-    managerId: row.managerId, address: row.address, startDate: row.startDate,
-    endDate: row.endDate, type: row.type, status: row.status, description: row.description,
+    id: row.id, code: row.code, name: row.name, customerId: row.customerId,
+    customerName: row.customerName, managerId: row.managerId, address: row.address,
+    startDate: row.startDate, endDate: row.endDate, type: row.type, status: row.status, description: row.description,
   })
   dialogVisible.value = true
 }
@@ -108,14 +109,25 @@ async function handleDelete(row: Project) {
 const rules = {
   code: [{ required: true, message: '请输入项目编号', trigger: 'blur' }],
   name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
+  customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
 }
 
 // 加载项目经理(用户)选项列表
 async function loadOptions() {
   try {
-    const res: any = await userApi.page({ pageNum: 1, pageSize: 999 })
-    userOptions.value = (res.list || []).map((u: any) => ({ label: u.name || u.username, value: u.id }))
+    const [users, customers] = await Promise.all([
+      userApi.page({ pageNum: 1, pageSize: 200 }),
+      customerApi.list(),
+    ]) as any[]
+    userOptions.value = (users.list || []).map((u: any) => ({ label: u.name, value: u.id }))
+    customerOptions.value = (customers || []).map((c: any) => ({ label: c.name, value: c.id }))
   } catch {}
+}
+
+// 根据客户 ID 查找名称
+function customerName(id?: string) {
+  if (!id) return '-'
+  return customerOptions.value.find((c) => c.value === id)?.label || id
 }
 
 // 根据经理 ID 查找名称
@@ -166,7 +178,9 @@ onMounted(() => {
       <el-table v-loading="loading" :data="tableData" row-key="id" style="width: 100%">
         <el-table-column prop="code" label="项目编号" min-width="120" />
         <el-table-column prop="name" label="项目名称" min-width="180" />
-        <el-table-column prop="customerName" label="客户" min-width="140" />
+        <el-table-column label="客户" min-width="140">
+          <template #default="{ row }">{{ customerName(row.customerId) }}</template>
+        </el-table-column>
         <el-table-column label="项目经理" min-width="120">
           <template #default="{ row }">{{ managerName(row.managerId) }}</template>
         </el-table-column>
@@ -211,8 +225,10 @@ onMounted(() => {
         <el-form-item label="项目名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入项目名称" />
         </el-form-item>
-        <el-form-item label="客户名称">
-          <el-input v-model="form.customerName" placeholder="请输入客户名称" />
+        <el-form-item label="客户名称" prop="customerId">
+          <el-select v-model="form.customerId" placeholder="请选择客户" clearable filterable style="width: 100%">
+            <el-option v-for="opt in customerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="项目经理">
           <el-select v-model="form.managerId" placeholder="请选择项目经理" clearable filterable style="width: 100%">

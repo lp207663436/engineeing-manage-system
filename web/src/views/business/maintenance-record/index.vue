@@ -40,10 +40,22 @@ const isEdit = ref(false)
 
 type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
 const recordTypeMap: Record<string, string> = {
-  INSPECTION: '巡检记录', REPAIR: '维修记录', TEST: '测试记录',
+  INSPECTION: '巡检记录', REPAIR: '维修记录', MAINTENANCE: '保养记录',
 }
 const recordTypeTagType: Record<string, TagType> = {
-  INSPECTION: 'primary', REPAIR: 'warning', TEST: 'info',
+  INSPECTION: 'primary', REPAIR: 'warning', MAINTENANCE: 'success',
+}
+
+// 根据记录人 ID 查找名称
+function recorderName(id?: string) {
+  if (!id) return '-'
+  return userOptions.value.find((u) => u.value === id)?.label || id
+}
+
+// 根据任务 ID 查找编码
+function taskCode(id?: string) {
+  if (!id) return '-'
+  return taskOptions.value.find((t) => t.value === id)?.label || id
 }
 
 async function loadProjects() {
@@ -218,12 +230,16 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="recordDate" label="记录日期" min-width="120" />
-        <el-table-column prop="recorderId" label="记录人" min-width="120" />
+        <el-table-column label="记录人" min-width="120">
+          <template #default="{ row }">{{ recorderName(row.recorderId) }}</template>
+        </el-table-column>
         <el-table-column label="内容" min-width="220">
           <template #default="{ row }">{{ truncate(row.content) }}</template>
         </el-table-column>
         <el-table-column prop="result" label="结果" min-width="140" />
-        <el-table-column prop="taskId" label="关联任务" min-width="130" />
+        <el-table-column label="关联任务" min-width="130">
+          <template #default="{ row }">{{ taskCode(row.taskId) }}</template>
+        </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">

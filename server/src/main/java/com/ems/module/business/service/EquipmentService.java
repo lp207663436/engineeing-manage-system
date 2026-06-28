@@ -39,6 +39,7 @@ public class EquipmentService {
     public Equipment get(Long id) {
         Equipment e = equipmentMapper.selectById(id);
         if (e == null) throw new BusinessException("设备不存在");
+        DataScopeHelper.checkOwnership(e.getCreateBy());
         return e;
     }
 
@@ -55,6 +56,7 @@ public class EquipmentService {
 
     public void update(EquipmentDTO dto) {
         Equipment existing = get(dto.getId());
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         BeanUtils.copyProperties(dto, existing);
         if (StringUtils.hasText(dto.getCommissioningDate())) existing.setCommissioningDate(LocalDate.parse(dto.getCommissioningDate()));
         if (StringUtils.hasText(dto.getWarrantyExpiry())) existing.setWarrantyExpiry(LocalDate.parse(dto.getWarrantyExpiry()));
@@ -62,7 +64,8 @@ public class EquipmentService {
     }
 
     public void delete(Long id) {
-        get(id);
+        Equipment existing = get(id);
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         equipmentMapper.deleteById(id);
     }
 }

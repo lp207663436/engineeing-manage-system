@@ -36,6 +36,7 @@ public class ProjectService {
     public Project get(Long id) {
         Project p = projectMapper.selectById(id);
         if (p == null) throw new BusinessException("项目不存在");
+        DataScopeHelper.checkOwnership(p.getCreateBy());
         return p;
     }
 
@@ -53,6 +54,7 @@ public class ProjectService {
 
     public void update(ProjectDTO dto) {
         Project existing = get(dto.getId());
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         BeanUtils.copyProperties(dto, existing);
         if (StringUtils.hasText(dto.getStartDate())) existing.setStartDate(LocalDate.parse(dto.getStartDate()));
         if (StringUtils.hasText(dto.getEndDate())) existing.setEndDate(LocalDate.parse(dto.getEndDate()));
@@ -60,7 +62,8 @@ public class ProjectService {
     }
 
     public void delete(Long id) {
-        get(id);
+        Project existing = get(id);
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         projectMapper.deleteById(id);
     }
 }

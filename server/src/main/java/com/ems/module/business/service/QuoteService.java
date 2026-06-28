@@ -1,17 +1,22 @@
 package com.ems.module.business.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
 import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.business.dto.QuoteCompareVO;
 import com.ems.module.business.dto.QuoteDTO;
+import com.ems.module.business.entity.Contract;
 import com.ems.module.business.entity.Quote;
+import com.ems.module.business.mapper.ContractMapper;
 import com.ems.module.business.mapper.QuoteMapper;
 import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -25,6 +30,11 @@ import java.util.List;
 public class QuoteService {
 
     private final QuoteMapper quoteMapper;
+    private final ContractMapper contractMapper;
+
+    @Lazy
+    @Autowired
+    private MaintenancePointService maintenancePointService;
 
     public PageResult<Quote> page(long pageNum, long pageSize, String code, String customerName, String status) {
         LambdaQueryWrapper<Quote> wrapper = new LambdaQueryWrapper<>();
@@ -40,6 +50,7 @@ public class QuoteService {
     public Quote get(Long id) {
         Quote q = quoteMapper.selectById(id);
         if (q == null) throw new BusinessException("报价不存在");
+        DataScopeHelper.checkOwnership(q.getCreateBy());
         return q;
     }
 
@@ -59,6 +70,7 @@ public class QuoteService {
 
     public void update(QuoteDTO dto) {
         Quote existing = get(dto.getId());
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         BeanUtils.copyProperties(dto, existing);
         if (StringUtils.hasText(dto.getQuoteDate())) existing.setQuoteDate(LocalDate.parse(dto.getQuoteDate()));
         if (StringUtils.hasText(dto.getValidUntil())) existing.setValidUntil(LocalDate.parse(dto.getValidUntil()));
@@ -66,8 +78,53 @@ public class QuoteService {
     }
 
     public void delete(Long id) {
-        get(id);
+        Quote existing = get(id);
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         quoteMapper.deleteById(id);
+    }
+
+    /**
+     * 确认报价(status 改为 CONFIRMED)。
+     * 同一时间只允许一个生效报价:将同 businessId 的其他 CONFIRMED 报价置为 VOID。
+     * 维保点位报价确认时,更新点位状态为 QUOTED。
+     */
+    public void confirm(Long id) {
+        Quote existing = get(id);
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
+        // 将同 businessId 的其他 CONFIRMED 报价置为 VOID
+        if (existing.getBusinessId() != null) {
+            quoteMapper.update(null,
+                    new LambdaUpdateWrapper<Quote>()
+                            .eq(Quote::getBusinessId, existing.getBusinessId())
+                            .eq(Quote::getStatus, "CONFIRMED")
+                            .ne(Quote::getId, id)
+                            .set(Quote::getStatus, "VOID"));
+        }
+        existing.setStatus("CONFIRMED");
+        quoteMapper.updateById(existing);
+        // 维保点位报价确认时,更新点位状态为 QUOTED
+        if ("MAINTENANCE_POINT".equals(existing.getBusinessType()) && existing.getBusinessId() != null) {
+            maintenancePointService.updateStatus(existing.getBusinessId(), "QUOTED");
+        }
+    }
+
+    /**
+     * 报价转合同:根据报价信息创建合同草稿
+     */
+    public Contract convertToContract(Long quoteId) {
+        Quote quote = get(quoteId);
+        DataScopeHelper.checkOwnership(quote.getCreateBy());
+        Contract contract = new Contract();
+        contract.setCode("CT-" + quote.getCode());
+        contract.setName(quote.getCustomerName() != null ? quote.getCustomerName() + " 合同" : "合同草稿");
+        contract.setProjectId(quote.getProjectId());
+        contract.setAmount(quote.getAmount());
+        contract.setStatus("DRAFT");
+        contract.setApprovalStatus("NONE");
+        contract.setRemark("由报价 " + quote.getCode() + " 转换");
+        contract.setCreateBy(SecurityContext.getUserId());
+        contractMapper.insert(contract);
+        return contract;
     }
 
     /**

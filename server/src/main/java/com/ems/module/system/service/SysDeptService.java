@@ -1,6 +1,7 @@
 package com.ems.module.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.system.entity.SysDept;
 import com.ems.module.system.mapper.SysDeptMapper;
@@ -40,6 +41,10 @@ public class SysDeptService {
         if (dept.getParentId() != null && dept.getParentId().equals(dept.getId())) {
             throw new BusinessException("上级部门不能是自己");
         }
+        SysDept existing = deptMapper.selectById(dept.getId());
+        if (existing == null) throw new BusinessException("部门不存在");
+        // 水平越权校验
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         deptMapper.updateById(dept);
     }
 
@@ -47,6 +52,10 @@ public class SysDeptService {
         Long childCount = deptMapper.selectCount(
                 new LambdaQueryWrapper<SysDept>().eq(SysDept::getParentId, id));
         if (childCount > 0) throw new BusinessException("存在子部门,不能删除");
+        SysDept existing = deptMapper.selectById(id);
+        if (existing == null) throw new BusinessException("部门不存在");
+        // 水平越权校验
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         deptMapper.deleteById(id);
     }
 }

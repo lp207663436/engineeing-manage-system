@@ -1,6 +1,7 @@
 package com.ems.common.datascope;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ems.common.exception.BusinessException;
 import com.ems.security.context.CurrentUser;
 import com.ems.security.context.SecurityContext;
 
@@ -68,5 +69,42 @@ public final class DataScopeHelper {
     public static <T> void applyTo(LambdaQueryWrapper<T> wrapper) {
         String field = DataScopeContext.get();
         applyTo(wrapper, field == null ? "create_by" : field);
+    }
+
+    /**
+     * 水平越权校验:检查当前登录用户是否有权操作某条记录(由 createBy 标识归属)。
+     * 规则:
+     * - 无登录上下文:抛 401
+     * - 超管(userId=1):放行
+     * - createBy 为 null:仅超管可操作
+     * - createBy 等于当前用户:放行(本人数据)
+     * - dataScope<=3(本部门及以下):放行(部门内数据)
+     * - 其他:抛 403
+     *
+     * @param createBy 被操作记录的创建人 ID
+     */
+    public static void checkOwnership(Long createBy) {
+        CurrentUser user = SecurityContext.get();
+        if (user == null || user.getUserId() == null) {
+            throw new BusinessException(401, "未登录");
+        }
+        // 超管放行
+        if (SecurityContext.SUPER_ADMIN_ID.equals(user.getUserId())) {
+            return;
+        }
+        // createBy 为 null 的记录仅超管可操作
+        if (createBy == null) {
+            throw new BusinessException(403, "无权操作该数据");
+        }
+        // 本人数据放行
+        if (createBy.equals(user.getUserId())) {
+            return;
+        }
+        // 部门数据权限(dataScope<=3 即本部门及以下)放行
+        Integer scope = user.getDataScope();
+        if (scope != null && scope <= 3) {
+            return;
+        }
+        throw new BusinessException(403, "无权操作该数据");
     }
 }

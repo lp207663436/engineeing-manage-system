@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   maintenanceContractApi,
@@ -40,6 +40,12 @@ const statusMap: Record<string, string> = {
 const statusTagType: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
   ACTIVE: 'success', TERMINATED: 'danger', EXPIRED: 'info',
 }
+// 表单可选状态(排除 EXPIRED,应由系统自动设置)
+const formStatusMap = computed(() => {
+  const m: Record<string, string> = { ...statusMap }
+  delete m.EXPIRED
+  return m
+})
 
 async function loadData() {
   loading.value = true
@@ -318,7 +324,7 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" style="width: 100%">
-            <el-option v-for="(label, key) in statusMap" :key="key" :label="label" :value="key" />
+            <el-option v-for="(label, key) in formStatusMap" :key="key" :label="label" :value="key" />
           </el-select>
         </el-form-item>
         <el-form-item label="备注">

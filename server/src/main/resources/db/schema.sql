@@ -36,7 +36,7 @@ CREATE TABLE sys_role (
     id BIGINT PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
     code VARCHAR(50) NOT NULL UNIQUE,
-    data_scope TINYINT DEFAULT 1 COMMENT '1全部 2本部门 3本部门及以下 4本人',
+    data_scope TINYINT DEFAULT 4 COMMENT '1全部 2本部门 3本部门及以下 4本人',
     sort INT DEFAULT 0,
     status TINYINT DEFAULT 1,
     create_by BIGINT,
@@ -86,7 +86,20 @@ INSERT INTO sys_menu (id, parent_id, name, type, permission, path, icon, sort) V
 (101, 100, '用户管理', 2, 'system:user:list', '/system/user', 'User', 1),
 (102, 100, '角色管理', 2, 'system:role:list', '/system/role', 'UserFilled', 2),
 (103, 100, '菜单管理', 2, 'system:menu:list', '/system/menu', 'Menu', 3),
-(104, 100, '部门管理', 2, 'system:dept:list', '/system/dept', 'OfficeBuilding', 4);
+(104, 100, '部门管理', 2, 'system:dept:list', '/system/dept', 'OfficeBuilding', 4),
+-- 系统管理模块按钮权限(用户/角色/菜单/部门 add/edit/delete)
+(1011, 101, '用户新增', 3, 'system:user:add', NULL, NULL, 1),
+(1012, 101, '用户编辑', 3, 'system:user:edit', NULL, NULL, 2),
+(1013, 101, '用户删除', 3, 'system:user:delete', NULL, NULL, 3),
+(1021, 102, '角色新增', 3, 'system:role:add', NULL, NULL, 1),
+(1022, 102, '角色编辑', 3, 'system:role:edit', NULL, NULL, 2),
+(1023, 102, '角色删除', 3, 'system:role:delete', NULL, NULL, 3),
+(1031, 103, '菜单新增', 3, 'system:menu:add', NULL, NULL, 1),
+(1032, 103, '菜单编辑', 3, 'system:menu:edit', NULL, NULL, 2),
+(1033, 103, '菜单删除', 3, 'system:menu:delete', NULL, NULL, 3),
+(1041, 104, '部门新增', 3, 'system:dept:add', NULL, NULL, 1),
+(1042, 104, '部门编辑', 3, 'system:dept:edit', NULL, NULL, 2),
+(1043, 104, '部门删除', 3, 'system:dept:delete', NULL, NULL, 3);
 
 -- ===== 业务模块表(2A) =====
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { quoteApi, projectApi, maintenancePointApi, approvalApi, type QuoteDTO, type ApprovalLogDTO } from '@/api/business'
+import { quoteApi, projectApi, maintenancePointApi, approvalApi, customerApi, type QuoteDTO, type ApprovalLogDTO } from '@/api/business'
 
 interface Option { label: string; value: string }
 
@@ -11,6 +11,7 @@ interface Quote extends QuoteDTO {
 
 const projectOptions = ref<Option[]>([])
 const pointOptions = ref<Option[]>([])
+const customerOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<Quote[]>([])
@@ -22,8 +23,8 @@ const dialogTitle = ref('')
 const formRef = ref<FormInstance>()
 const form = reactive<QuoteDTO>({
   code: '', projectId: undefined, businessType: 'NEW_BUILD', businessId: undefined,
-  amount: 0, quoteDate: '', validUntil: '', quotePerson: '', customerName: '',
-  version: 1, status: 'DRAFT', summary: '',
+  amount: 0, quoteDate: '', validUntil: '', quotePerson: '', customerId: undefined,
+  customerName: '', version: 1, status: 'DRAFT', summary: '',
 })
 const isEdit = ref(false)
 
@@ -47,13 +48,21 @@ watch(() => form.businessType, () => {
 
 async function loadOptions() {
   try {
-    const [proj, points] = await Promise.all([
+    const [proj, points, customers] = await Promise.all([
       projectApi.page({ pageNum: 1, pageSize: 200 }),
       maintenancePointApi.page({ pageNum: 1, pageSize: 200 }),
+      customerApi.list(),
     ]) as any[]
     projectOptions.value = (proj.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
     pointOptions.value = (points.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    customerOptions.value = (customers || []).map((c: any) => ({ label: c.name, value: c.id }))
   } catch {}
+}
+
+// 根据客户 ID 查找名称
+function customerName(id?: string) {
+  if (!id) return '-'
+  return customerOptions.value.find((c) => c.value === id)?.label || id
 }
 
 async function loadData() {
@@ -84,8 +93,8 @@ function handleAdd() {
   dialogTitle.value = '新增报价'
   Object.assign(form, {
     id: undefined, code: '', projectId: undefined, businessType: 'NEW_BUILD', businessId: undefined,
-    amount: 0, quoteDate: '', validUntil: '', quotePerson: '', customerName: '',
-    version: 1, status: 'DRAFT', summary: '',
+    amount: 0, quoteDate: '', validUntil: '', quotePerson: '', customerId: undefined,
+    customerName: '', version: 1, status: 'DRAFT', summary: '',
   })
   dialogVisible.value = true
 }
@@ -96,8 +105,8 @@ function handleEdit(row: Quote) {
   Object.assign(form, {
     id: row.id, code: row.code, projectId: row.projectId, businessType: row.businessType,
     businessId: row.businessId, amount: row.amount, quoteDate: row.quoteDate,
-    validUntil: row.validUntil, quotePerson: row.quotePerson, customerName: row.customerName,
-    version: row.version, status: row.status, summary: row.summary,
+    validUntil: row.validUntil, quotePerson: row.quotePerson, customerId: row.customerId,
+    customerName: row.customerName, version: row.version, status: row.status, summary: row.summary,
   })
   dialogVisible.value = true
 }
@@ -139,7 +148,7 @@ const rules = {
     { required: true, message: '请输入报价金额', trigger: 'blur' },
     { type: 'number', min: 0.01, message: '报价金额必须大于0', trigger: 'blur' },
   ],
-  customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
+  customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
   quoteDate: [{ required: true, message: '请选择报价日期', trigger: 'change' }],
   quotePerson: [{ required: true, message: '请输入报价人', trigger: 'blur' }],
 }
@@ -220,7 +229,9 @@ onMounted(() => {
       </div>
       <el-table v-loading="loading" :data="tableData" row-key="id" style="width: 100%">
         <el-table-column prop="code" label="报价编号" min-width="130" />
-        <el-table-column prop="customerName" label="客户名称" min-width="150" />
+        <el-table-column label="客户名称" min-width="150">
+          <template #default="{ row }">{{ customerName(row.customerId) }}</template>
+        </el-table-column>
         <el-table-column label="报价金额" min-width="130" align="right">
           <template #default="{ row }">{{ formatAmount(row.amount) }}</template>
         </el-table-column>
@@ -284,8 +295,10 @@ onMounted(() => {
             <el-option v-for="opt in businessIdOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="客户名称" prop="customerName">
-          <el-input v-model="form.customerName" placeholder="客户名称" />
+        <el-form-item label="客户名称" prop="customerId">
+          <el-select v-model="form.customerId" placeholder="请选择客户" clearable filterable style="width: 100%">
+            <el-option v-for="opt in customerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="报价金额" prop="amount">
           <el-input-number v-model="form.amount" :min="0.01" :precision="2" controls-position="right" style="width: 100%" />

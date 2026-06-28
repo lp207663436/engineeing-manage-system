@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { dashboardApi, projectApi, type ProjectDTO } from '@/api/business'
 
 interface SettlementLine {
@@ -19,6 +19,32 @@ const loading = ref(false)
 const projectOptions = ref<ProjectDTO[]>([])
 const projectId = ref<string>('')
 const dashboard = ref<DashboardVO>({})
+
+// 未收金额 = 总额 - 已回款
+const maintenanceUncollected = computed(() => {
+  const line = dashboard.value.maintenanceLine
+  if (!line) return 0
+  return (line.totalAmount || 0) - (line.receivedAmount || 0)
+})
+const pointUncollected = computed(() => {
+  const line = dashboard.value.pointLine
+  if (!line) return 0
+  return (line.totalAmount || 0) - (line.receivedAmount || 0)
+})
+// 总未收金额
+const totalUncollected = computed(() => maintenanceUncollected.value + pointUncollected.value)
+// 逾期金额(已开票但未回款的部分,简化估算)
+const maintenanceOverdue = computed(() => {
+  const line = dashboard.value.maintenanceLine
+  if (!line) return 0
+  return Math.max(0, (line.invoicedAmount || 0) - (line.receivedAmount || 0))
+})
+const pointOverdue = computed(() => {
+  const line = dashboard.value.pointLine
+  if (!line) return 0
+  return Math.max(0, (line.invoicedAmount || 0) - (line.receivedAmount || 0))
+})
+const totalOverdue = computed(() => maintenanceOverdue.value + pointOverdue.value)
 
 async function loadProjects() {
   try {
@@ -139,6 +165,61 @@ onMounted(() => {
           </el-col>
         </el-row>
 
+        <el-row :gutter="20" style="margin-bottom: 16px;">
+          <el-col :span="12">
+            <el-card shadow="never" class="metric-card uncollected-card">
+              <div class="card-title">未收金额</div>
+              <div class="card-sub">总额 - 已回款</div>
+              <el-row :gutter="16" class="metric-row">
+                <el-col :span="8">
+                  <div class="metric">
+                    <div class="metric-label">维保费未收</div>
+                    <div class="metric-value warning">{{ formatAmount(maintenanceUncollected) }}</div>
+                  </div>
+                </el-col>
+                <el-col :span="8">
+                  <div class="metric">
+                    <div class="metric-label">报价费未收</div>
+                    <div class="metric-value warning">{{ formatAmount(pointUncollected) }}</div>
+                  </div>
+                </el-col>
+                <el-col :span="8">
+                  <div class="metric">
+                    <div class="metric-label">合计未收</div>
+                    <div class="metric-value warning">{{ formatAmount(totalUncollected) }}</div>
+                  </div>
+                </el-col>
+              </el-row>
+            </el-card>
+          </el-col>
+          <el-col :span="12">
+            <el-card shadow="never" class="metric-card overdue-card">
+              <div class="card-title">逾期金额</div>
+              <div class="card-sub">已开票未回款(估算)</div>
+              <el-row :gutter="16" class="metric-row">
+                <el-col :span="8">
+                  <div class="metric">
+                    <div class="metric-label">维保费逾期</div>
+                    <div class="metric-value danger">{{ formatAmount(maintenanceOverdue) }}</div>
+                  </div>
+                </el-col>
+                <el-col :span="8">
+                  <div class="metric">
+                    <div class="metric-label">报价费逾期</div>
+                    <div class="metric-value danger">{{ formatAmount(pointOverdue) }}</div>
+                  </div>
+                </el-col>
+                <el-col :span="8">
+                  <div class="metric">
+                    <div class="metric-label">合计逾期</div>
+                    <div class="metric-value danger">{{ formatAmount(totalOverdue) }}</div>
+                  </div>
+                </el-col>
+              </el-row>
+            </el-card>
+          </el-col>
+        </el-row>
+
         <el-card shadow="never" class="metric-card summary-card">
           <div class="summary-wrap">
             <div class="summary-label">累计已回款</div>
@@ -179,6 +260,8 @@ onMounted(() => {
     color: #1F2937;
     letter-spacing: -0.01em;
     &.accent { color: #4F6BED; }
+    &.warning { color: #F59E0B; }
+    &.danger { color: #EF4444; }
   }
 }
 .summary-card {

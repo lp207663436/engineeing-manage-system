@@ -42,6 +42,7 @@ public class SupplierService {
     public Supplier get(Long id) {
         Supplier s = supplierMapper.selectById(id);
         if (s == null) throw new BusinessException("供应商不存在");
+        DataScopeHelper.checkOwnership(s.getCreateBy());
         return s;
     }
 
@@ -55,12 +56,14 @@ public class SupplierService {
 
     public void update(SupplierDTO dto) {
         Supplier existing = get(dto.getId());
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         BeanUtils.copyProperties(dto, existing);
         supplierMapper.updateById(existing);
     }
 
     public void delete(Long id) {
-        get(id);
+        Supplier existing = get(id);
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         supplierMapper.deleteById(id);
     }
 }

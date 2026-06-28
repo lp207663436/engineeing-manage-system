@@ -3,6 +3,7 @@ package com.ems.module.system.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
+import com.ems.common.datascope.DataScopeHelper;
 import com.ems.common.exception.BusinessException;
 import com.ems.module.system.dto.SysDictDTO;
 import com.ems.module.system.dto.SysDictItemDTO;
@@ -42,6 +43,8 @@ public class SysDictService {
     public SysDict get(Long id) {
         SysDict d = sysDictMapper.selectById(id);
         if (d == null) throw new BusinessException("字典不存在");
+        // 水平越权校验
+        DataScopeHelper.checkOwnership(d.getCreateBy());
         return d;
     }
 
@@ -54,12 +57,16 @@ public class SysDictService {
 
     public void update(SysDictDTO dto) {
         SysDict existing = get(dto.getId());
+        // 水平越权校验(get 内已校验,此处再次确认 existing 的归属)
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         BeanUtils.copyProperties(dto, existing);
         sysDictMapper.updateById(existing);
     }
 
     public void delete(Long id) {
-        get(id);
+        SysDict d = get(id);
+        // 水平越权校验
+        DataScopeHelper.checkOwnership(d.getCreateBy());
         sysDictMapper.deleteById(id);
         // 同步删除字典项
         sysDictItemMapper.delete(new LambdaQueryWrapper<SysDictItem>().eq(SysDictItem::getDictId, id));

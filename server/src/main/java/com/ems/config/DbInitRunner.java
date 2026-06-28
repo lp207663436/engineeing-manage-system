@@ -1,5 +1,6 @@
 package com.ems.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -12,6 +13,7 @@ import java.nio.charset.StandardCharsets;
  * 业务模块表初始化(幂等)。
  * 启动时检查并创建业务表、插入菜单权限,避免依赖外部 mysql 客户端。
  */
+@Slf4j
 @Component
 @Order(100)
 public class DbInitRunner implements CommandLineRunner {
@@ -48,9 +50,10 @@ public class DbInitRunner implements CommandLineRunner {
         createSysDictTable();
         createSysDictItemTable();
         createContractChangeTable();
+        createSysOperationLogTable();
         ensureAuditColumns();
         seedBusinessMenus();
-        System.out.println("[DbInitRunner] 业务模块表初始化完成");
+        log.info("[DbInitRunner] 业务模块表初始化完成");
     }
 
     private void exec(String sql) {
@@ -69,8 +72,8 @@ public class DbInitRunner implements CommandLineRunner {
                 "contract_change", "sys_user", "sys_role", "sys_dept", "sys_menu"
         };
         for (String table : tables) {
-            try { exec("ALTER TABLE " + table + " ADD COLUMN create_by BIGINT COMMENT '创建人'"); } catch (Exception ignore) {}
-            try { exec("ALTER TABLE " + table + " ADD COLUMN update_by BIGINT COMMENT '更新人'"); } catch (Exception ignore) {}
+            try { exec("ALTER TABLE " + table + " ADD COLUMN create_by BIGINT COMMENT '创建人'"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
+            try { exec("ALTER TABLE " + table + " ADD COLUMN update_by BIGINT COMMENT '更新人'"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
         }
     }
 
@@ -147,7 +150,7 @@ public class DbInitRunner implements CommandLineRunner {
                 "INDEX idx_business (business_type, business_id)" +
                 ") COMMENT '报价表'");
         // 补充 version 列(已有表兼容)
-        try { exec("ALTER TABLE quote ADD COLUMN version INT DEFAULT 1 COMMENT '版本号' AFTER status"); } catch (Exception ignore) {}
+        try { exec("ALTER TABLE quote ADD COLUMN version INT DEFAULT 1 COMMENT '版本号' AFTER status"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
     }
 
     private void createEquipmentTable() {
@@ -293,10 +296,13 @@ public class DbInitRunner implements CommandLineRunner {
                 "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
                 "deleted TINYINT DEFAULT 0," +
                 "UNIQUE KEY uk_code (code)," +
-                "UNIQUE KEY uk_quarterly_settlement (contract_id, period_no)," +
+                "UNIQUE KEY uk_point_settlement (contract_id, period_no)," +
                 "INDEX idx_point (point_id)," +
                 "INDEX idx_project (project_id)" +
                 ") COMMENT '点位结算单表'");
+        // 兼容已有表:删除旧的错误命名唯一键 uk_quarterly_settlement,创建正确的 uk_point_settlement
+        try { exec("ALTER TABLE point_settlement DROP INDEX uk_quarterly_settlement"); } catch (Exception e) { log.warn("DDL操作跳过(旧索引可能不存在): {}", e.getMessage()); }
+        try { exec("ALTER TABLE point_settlement ADD UNIQUE KEY uk_point_settlement (contract_id, period_no)"); } catch (Exception e) { log.warn("DDL操作跳过(uk_point_settlement 可能已存在): {}", e.getMessage()); }
     }
 
     private void createQuarterlySettlementTable() {
@@ -356,8 +362,8 @@ public class DbInitRunner implements CommandLineRunner {
         // 补充 plan_inspect_date 列(已有表兼容)
         try {
             exec("ALTER TABLE maintenance_task ADD COLUMN plan_inspect_date DATE COMMENT '计划巡检日期' AFTER plan_date");
-        } catch (Exception ignore) {
-            // 列已存在则忽略
+        } catch (Exception e) {
+            log.warn("DDL操作跳过: {}", e.getMessage());
         }
     }
 
@@ -481,8 +487,8 @@ public class DbInitRunner implements CommandLineRunner {
                 "INDEX idx_result (result)" +
                 ") COMMENT '审批记录表'");
         // 补充 contract/quote 表 approval_status 列(已有表兼容)
-        try { exec("ALTER TABLE contract ADD COLUMN approval_status VARCHAR(20) DEFAULT 'NONE' COMMENT 'NONE/PENDING/APPROVED/REJECTED' AFTER status"); } catch (Exception ignore) {}
-        try { exec("ALTER TABLE quote ADD COLUMN approval_status VARCHAR(20) DEFAULT 'NONE' COMMENT 'NONE/PENDING/APPROVED/REJECTED' AFTER status"); } catch (Exception ignore) {}
+        try { exec("ALTER TABLE contract ADD COLUMN approval_status VARCHAR(20) DEFAULT 'NONE' COMMENT 'NONE/PENDING/APPROVED/REJECTED' AFTER status"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
+        try { exec("ALTER TABLE quote ADD COLUMN approval_status VARCHAR(20) DEFAULT 'NONE' COMMENT 'NONE/PENDING/APPROVED/REJECTED' AFTER status"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
     }
 
     private void createSysNotificationTable() {
@@ -565,8 +571,19 @@ public class DbInitRunner implements CommandLineRunner {
                 "code VARCHAR(50) NOT NULL COMMENT '字典编码'," +
                 "name VARCHAR(100) NOT NULL COMMENT '字典名称'," +
                 "remark VARCHAR(500) COMMENT '备注'," +
+                "create_by BIGINT COMMENT '创建人'," +
+                "update_by BIGINT COMMENT '更新人'," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0 COMMENT '逻辑删除'," +
                 "UNIQUE KEY uk_code (code)" +
                 ") COMMENT '数据字典表'");
+        // 兼容已有表:补充 deleted、create_by、update_by、create_time、update_time 字段
+        try { exec("ALTER TABLE sys_dict ADD COLUMN deleted TINYINT DEFAULT 0 COMMENT '逻辑删除'"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
+        try { exec("ALTER TABLE sys_dict ADD COLUMN create_by BIGINT COMMENT '创建人'"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
+        try { exec("ALTER TABLE sys_dict ADD COLUMN update_by BIGINT COMMENT '更新人'"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
+        try { exec("ALTER TABLE sys_dict ADD COLUMN create_time DATETIME DEFAULT CURRENT_TIMESTAMP"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
+        try { exec("ALTER TABLE sys_dict ADD COLUMN update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
     }
 
     private void createSysDictItemTable() {
@@ -576,8 +593,19 @@ public class DbInitRunner implements CommandLineRunner {
                 "label VARCHAR(100) NOT NULL COMMENT '字典项标签'," +
                 "value VARCHAR(100) NOT NULL COMMENT '字典项值'," +
                 "sort INT DEFAULT 0 COMMENT '排序'," +
+                "create_by BIGINT COMMENT '创建人'," +
+                "update_by BIGINT COMMENT '更新人'," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0 COMMENT '逻辑删除'," +
                 "INDEX idx_dict (dict_id)" +
                 ") COMMENT '数据字典项表'");
+        // 兼容已有表:补充 deleted、create_by、update_by、create_time、update_time 字段
+        try { exec("ALTER TABLE sys_dict_item ADD COLUMN deleted TINYINT DEFAULT 0 COMMENT '逻辑删除'"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
+        try { exec("ALTER TABLE sys_dict_item ADD COLUMN create_by BIGINT COMMENT '创建人'"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
+        try { exec("ALTER TABLE sys_dict_item ADD COLUMN update_by BIGINT COMMENT '更新人'"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
+        try { exec("ALTER TABLE sys_dict_item ADD COLUMN create_time DATETIME DEFAULT CURRENT_TIMESTAMP"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
+        try { exec("ALTER TABLE sys_dict_item ADD COLUMN update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"); } catch (Exception e) { log.warn("DDL操作跳过: {}", e.getMessage()); }
     }
 
     private void createContractChangeTable() {
@@ -604,9 +632,42 @@ public class DbInitRunner implements CommandLineRunner {
                 ") COMMENT '合同变更记录表'");
     }
 
+    private void createSysOperationLogTable() {
+        exec("CREATE TABLE IF NOT EXISTS sys_operation_log (" +
+                "id BIGINT PRIMARY KEY," +
+                "user_id BIGINT COMMENT '操作人ID'," +
+                "username VARCHAR(50) COMMENT '操作人用户名'," +
+                "module VARCHAR(50) COMMENT '模块名'," +
+                "operation VARCHAR(50) COMMENT '操作描述'," +
+                "method VARCHAR(200) COMMENT '请求方法'," +
+                "params VARCHAR(2000) COMMENT '请求参数(JSON)'," +
+                "result VARCHAR(500) COMMENT '操作结果'," +
+                "ip VARCHAR(64) COMMENT '请求IP'," +
+                "cost_time BIGINT COMMENT '耗时(毫秒)'," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间'," +
+                "INDEX idx_user (user_id)," +
+                "INDEX idx_module (module)," +
+                "INDEX idx_create_time (create_time)" +
+                ") COMMENT '操作日志表'");
+    }
+
     private void seedBusinessMenus() {
         // 目录与菜单(INSERT IGNORE 幂等)
         String[][] menus = {
+                // ===== 系统管理模块按钮权限(用户/角色/菜单/部门 add/edit/delete) =====
+                {"1011", "101", "用户新增", "3", "system:user:add", "", "", "1"},
+                {"1012", "101", "用户编辑", "3", "system:user:edit", "", "", "2"},
+                {"1013", "101", "用户删除", "3", "system:user:delete", "", "", "3"},
+                {"1021", "102", "角色新增", "3", "system:role:add", "", "", "1"},
+                {"1022", "102", "角色编辑", "3", "system:role:edit", "", "", "2"},
+                {"1023", "102", "角色删除", "3", "system:role:delete", "", "", "3"},
+                {"1031", "103", "菜单新增", "3", "system:menu:add", "", "", "1"},
+                {"1032", "103", "菜单编辑", "3", "system:menu:edit", "", "", "2"},
+                {"1033", "103", "菜单删除", "3", "system:menu:delete", "", "", "3"},
+                {"1041", "104", "部门新增", "3", "system:dept:add", "", "", "1"},
+                {"1042", "104", "部门编辑", "3", "system:dept:edit", "", "", "2"},
+                {"1043", "104", "部门删除", "3", "system:dept:delete", "", "", "3"},
+                // ===== 业务模块菜单 =====
                 {"200", "0", "业务管理", "1", "", "/business", "Briefcase", "2"},
                 {"201", "200", "项目管理", "2", "business:project:list", "/business/project", "FolderKanban", "1"},
                 {"202", "200", "合同管理", "2", "business:contract:list", "/business/contract", "FileText", "2"},
@@ -700,8 +761,8 @@ public class DbInitRunner implements CommandLineRunner {
                     m[6].isEmpty() ? null : m[6],
                     Integer.parseInt(m[7]));
         }
-        // 给 admin(role_id=1)分配权限,幂等
+        // 给 admin(role_id=1)分配权限,幂等(包含系统管理按钮权限 1011-1043 和业务菜单 200-2254)
         jdbc.update("INSERT IGNORE INTO sys_role_menu (role_id, menu_id) " +
-                "SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2254");
+                "SELECT 1, id FROM sys_menu WHERE (id BETWEEN 1011 AND 1043) OR (id BETWEEN 200 AND 2254)");
     }
 }

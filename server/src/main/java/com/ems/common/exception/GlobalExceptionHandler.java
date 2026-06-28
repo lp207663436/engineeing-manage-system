@@ -3,6 +3,7 @@ package com.ems.common.exception;
 import com.ems.common.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -17,8 +18,19 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public Result<Void> handleBusiness(BusinessException e) {
-        return Result.error(e.getCode(), e.getMessage());
+    public ResponseEntity<Result<Void>> handleBusiness(BusinessException e) {
+        // 根据 BusinessException 的 code 映射 HTTP 状态码
+        HttpStatus status;
+        int code = e.getCode();
+        if (code == 401) {
+            status = HttpStatus.UNAUTHORIZED;
+        } else if (code == 403) {
+            status = HttpStatus.FORBIDDEN;
+        } else {
+            // 其他业务异常(含 500、400 等)统一返回 200,错误信息通过 body.code 传递
+            status = HttpStatus.OK;
+        }
+        return ResponseEntity.status(status).body(Result.error(e.getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { PageResult } from '@/api/system'
 
 // 后端 Long 已全局序列化为 String,所有 id 用 string 避免 JS 精度丢失
 
@@ -7,6 +8,7 @@ export interface ProjectDTO {
   id?: string
   code: string
   name: string
+  customerId?: string
   customerName?: string
   managerId?: string
   address?: string
@@ -18,12 +20,12 @@ export interface ProjectDTO {
 }
 
 export const projectApi = {
-  page: (params: { pageNum: number; pageSize: number; name?: string; type?: string; status?: string }) =>
+  page: (params: { pageNum: number; pageSize: number; name?: string; type?: string; status?: string }): Promise<PageResult<ProjectDTO>> =>
     request.get('/business/project/page', { params }),
-  get: (id: string) => request.get(`/business/project/${id}`),
-  create: (data: ProjectDTO) => request.post('/business/project', data),
-  update: (data: ProjectDTO) => request.put('/business/project', data),
-  delete: (id: string) => request.delete(`/business/project/${id}`),
+  get: (id: string): Promise<ProjectDTO> => request.get(`/business/project/${id}`),
+  create: (data: ProjectDTO): Promise<ProjectDTO> => request.post('/business/project', data),
+  update: (data: ProjectDTO): Promise<ProjectDTO> => request.put('/business/project', data),
+  delete: (id: string): Promise<void> => request.delete(`/business/project/${id}`),
 }
 
 // ===== 合同 =====
@@ -64,6 +66,7 @@ export interface QuoteDTO {
   quoteDate?: string
   validUntil?: string
   quotePerson?: string
+  customerId?: string
   customerName?: string
   version?: number
   status?: string
@@ -232,6 +235,8 @@ export const pointSettlementApi = {
   create: (data: PointSettlementDTO) => request.post('/business/point-settlement', data),
   update: (data: PointSettlementDTO) => request.put('/business/point-settlement', data),
   delete: (id: string) => request.delete(`/business/point-settlement/${id}`),
+  updateStatus: (id: string, data: { status: string; remark?: string }) =>
+    request.put(`/business/point-settlement/${id}/status`, data),
 }
 
 // ===== 季度结算单 =====

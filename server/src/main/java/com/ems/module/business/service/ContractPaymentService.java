@@ -51,6 +51,7 @@ public class ContractPaymentService {
     public ContractPayment get(Long id) {
         ContractPayment p = contractPaymentMapper.selectById(id);
         if (p == null) throw new BusinessException("收付款记录不存在");
+        DataScopeHelper.checkOwnership(p.getCreateBy());
         return p;
     }
 
@@ -77,6 +78,7 @@ public class ContractPaymentService {
 
     public void update(ContractPaymentDTO dto) {
         ContractPayment existing = get(dto.getId());
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         if (dto.getContractId() != null) {
             validateContractExist(dto.getContractId());
         }
@@ -93,11 +95,13 @@ public class ContractPaymentService {
     public void delete(Long id) {
         ContractPayment existing = get(id);
         if ("RECEIVED".equals(existing.getStatus())) throw new BusinessException("已收款的记录不可删除");
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         contractPaymentMapper.deleteById(id);
     }
 
     /**
-     * 记录实际收付款。若 actualAmount >= planAmount 则状态置为 RECEIVED,否则置为 PARTIAL。
+     * 记录实际收付款。多次部分登记累加 actualAmount。
+     * 若累加后 actualAmount >= planAmount 则状态置为 RECEIVED,否则置为 PARTIAL。
      * 使用条件更新实现并发控制:仅当状态非 RECEIVED 时更新。
      */
     public void recordActual(Long id, BigDecimal actualAmount, LocalDate actualDate, String invoiceNo) {
@@ -108,8 +112,13 @@ public class ContractPaymentService {
         if ("RECEIVED".equals(existing.getStatus())) {
             throw new BusinessException("已收款记录不可重复登记");
         }
+        // 累加语义:新值 = 当前值 + 传入值
+        BigDecimal currentActual = existing.getActualAmount() == null
+                ? BigDecimal.ZERO : existing.getActualAmount();
+        BigDecimal newActual = currentActual.add(actualAmount);
+        // 状态判定基于累加后的值
         String newStatus;
-        if (existing.getPlanAmount() != null && actualAmount.compareTo(existing.getPlanAmount()) >= 0) {
+        if (existing.getPlanAmount() != null && newActual.compareTo(existing.getPlanAmount()) >= 0) {
             newStatus = "RECEIVED";
         } else {
             newStatus = "PARTIAL";
@@ -118,7 +127,7 @@ public class ContractPaymentService {
         LambdaUpdateWrapper<ContractPayment> updateWrapper = Wrappers.<ContractPayment>lambdaUpdate()
                 .eq(ContractPayment::getId, id)
                 .ne(ContractPayment::getStatus, "RECEIVED")
-                .set(ContractPayment::getActualAmount, actualAmount)
+                .set(ContractPayment::getActualAmount, newActual)
                 .set(ContractPayment::getActualDate, actualDate)
                 .set(ContractPayment::getStatus, newStatus);
         if (StringUtils.hasText(invoiceNo)) {
@@ -131,13 +140,13 @@ public class ContractPaymentService {
     }
 
     /**
-     * 逾期标记:将 planDate < today 且 status = PENDING 的记录更新为 OVERDUE
+     * 逾期标记:将 planDate < today 且 status = PENDING 或 PARTIAL 的记录更新为 OVERDUE
      */
     public void markOverdue() {
         LocalDate today = LocalDate.now();
         contractPaymentMapper.update(null,
                 new LambdaUpdateWrapper<ContractPayment>()
-                        .eq(ContractPayment::getStatus, "PENDING")
+                        .in(ContractPayment::getStatus, "PENDING", "PARTIAL")
                         .lt(ContractPayment::getPlanDate, today)
                         .set(ContractPayment::getStatus, "OVERDUE"));
     }

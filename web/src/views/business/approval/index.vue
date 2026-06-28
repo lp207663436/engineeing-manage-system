@@ -2,10 +2,15 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, type FormInstance } from 'element-plus'
 import { approvalApi, type ApprovalLogDTO } from '@/api/business'
+import { userApi } from '@/api/system'
+
+interface Option { label: string; value: string }
 
 type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
 
 const activeTab = ref<'pending' | 'history' | 'all'>('pending')
+
+const userOptions = ref<Option[]>([])
 
 const pendingLoading = ref(false)
 const pendingData = ref<ApprovalLogDTO[]>([])
@@ -133,8 +138,29 @@ async function handleSubmitApprove() {
 }
 
 onMounted(() => {
+  loadUserOptions()
   loadPending()
 })
+
+async function loadUserOptions() {
+  try {
+    const res: any = await userApi.page({ pageNum: 1, pageSize: 200 })
+    userOptions.value = (res.list || []).map((u: any) => ({ label: u.name, value: u.id }))
+  } catch {}
+}
+
+// 根据审批人 ID 查找名称
+function approverName(id?: string) {
+  if (!id) return '-'
+  return userOptions.value.find((u) => u.value === id)?.label || id
+}
+
+// 根据业务类型和 ID 显示业务标识
+function businessLabel(row: ApprovalLogDTO) {
+  if (!row.businessId) return '-'
+  const prefix = row.businessType === 'CONTRACT_APPROVAL' ? '合同' : row.businessType === 'QUOTE_APPROVAL' ? '报价' : '业务'
+  return `${prefix}#${row.businessId}`
+}
 </script>
 
 <template>
@@ -155,9 +181,17 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="businessId" label="业务ID" min-width="160" />
+            <el-table-column label="业务标识" min-width="160">
+              <template #default="{ row }">
+                <span :title="`类型: ${businessTypeMap[row.businessType] || row.businessType}, ID: ${row.businessId}`">
+                  {{ businessLabel(row as ApprovalLogDTO) }}
+                </span>
+              </template>
+            </el-table-column>
             <el-table-column prop="nodeOrder" label="节点序号" width="100" />
-            <el-table-column prop="approverId" label="审批人ID" min-width="140" />
+            <el-table-column label="审批人" min-width="140">
+              <template #default="{ row }">{{ approverName(row.approverId) }}</template>
+            </el-table-column>
             <el-table-column prop="createTime" label="创建时间" min-width="160" />
             <el-table-column label="操作" width="160" fixed="right">
               <template #default="{ row }">
@@ -177,7 +211,13 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="businessId" label="业务ID" min-width="160" />
+            <el-table-column label="业务标识" min-width="160">
+              <template #default="{ row }">
+                <span :title="`类型: ${businessTypeMap[row.businessType] || row.businessType}, ID: ${row.businessId}`">
+                  {{ businessLabel(row as ApprovalLogDTO) }}
+                </span>
+              </template>
+            </el-table-column>
             <el-table-column prop="nodeOrder" label="节点序号" width="100" />
             <el-table-column label="结果" width="100">
               <template #default="{ row }">
@@ -214,7 +254,7 @@ onMounted(() => {
               <el-form-item label="业务ID">
                 <el-input
                   v-model="allQuery.businessId"
-                  placeholder="业务ID"
+                  placeholder="输入业务ID精确查询"
                   clearable
                   style="width: 200px"
                   @keyup.enter="handleAllSearch"
@@ -239,7 +279,13 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="businessId" label="业务ID" min-width="160" />
+            <el-table-column label="业务标识" min-width="160">
+              <template #default="{ row }">
+                <span :title="`类型: ${businessTypeMap[row.businessType] || row.businessType}, ID: ${row.businessId}`">
+                  {{ businessLabel(row as ApprovalLogDTO) }}
+                </span>
+              </template>
+            </el-table-column>
             <el-table-column prop="nodeOrder" label="节点序号" width="100" />
             <el-table-column label="结果" width="100">
               <template #default="{ row }">

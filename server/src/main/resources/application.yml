@@ -24,7 +24,8 @@ mybatis-plus:
       id-type: assign_id
 ems:
   jwt:
-    secret: ${EMS_JWT_SECRET:ems-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}
+    # 移除默认值,强制必须通过环境变量 EMS_JWT_SECRET 配置,避免密钥硬编码泄露
+    secret: ${EMS_JWT_SECRET}
     expire: 86400
     header: Authorization
     prefix: "Bearer "

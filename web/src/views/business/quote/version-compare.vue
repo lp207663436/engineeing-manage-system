@@ -18,7 +18,7 @@ const form = reactive({
 
 async function loadProjects() {
   try {
-    const res: any = await projectApi.page({ pageNum: 1, pageSize: 1000, name: undefined as any, type: undefined as any, status: undefined as any })
+    const res: any = await projectApi.page({ pageNum: 1, pageSize: 200, name: undefined as any, type: undefined as any, status: undefined as any })
     const list = res.list || []
     projectOptions.value = list.map((p: any) => ({ label: `${p.code} - ${p.name}`, value: p.id }))
   } catch {}

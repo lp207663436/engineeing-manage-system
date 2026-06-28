@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import {
   pointSettlementApi,
@@ -20,6 +20,10 @@ const projectOptions = ref<Option[]>([])
 const pointOptions = ref<Option[]>([])
 const quoteOptions = ref<Option[]>([])
 const acceptanceOptions = ref<Option[]>([])
+// 表单专用选项(按项目级联)
+const formPointOptions = ref<Option[]>([])
+const formQuoteOptions = ref<Option[]>([])
+const formAcceptanceOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<PointSettlement[]>([])
@@ -89,6 +93,8 @@ function handleEdit(row: PointSettlement) {
     status: row.status, invoiceNo: row.invoiceNo, receivedAmount: row.receivedAmount,
     receivedDate: row.receivedDate, remark: row.remark,
   })
+  // 编辑时按项目加载级联选项
+  loadOptionsByProject(row.projectId)
   dialogVisible.value = true
 }
 
@@ -115,6 +121,23 @@ async function handleDelete(row: PointSettlement) {
     await ElMessageBox.confirm(`确定删除结算单「${row.code}」吗?`, '提示', { type: 'warning' })
     await pointSettlementApi.delete(row.id!)
     ElMessage.success('删除成功')
+    loadData()
+  } catch {}
+}
+
+// 状态流转操作
+const statusFlowMap: Record<string, { next: string; label: string; type: 'primary' | 'success' | 'warning' }[]> = {
+  PENDING: [{ next: 'CONFIRMED', label: '确认', type: 'primary' }],
+  CONFIRMED: [{ next: 'INVOICED', label: '开票', type: 'primary' }],
+  INVOICED: [{ next: 'RECEIVED', label: '回款', type: 'success' }],
+  RECEIVED: [{ next: 'CLOSED', label: '关闭', type: 'warning' }],
+}
+
+async function handleStatusFlow(row: PointSettlement, next: string, label: string) {
+  try {
+    await ElMessageBox.confirm(`确定将结算单「${row.code}」状态变更为「${statusMap[next]}」吗?`, '状态流转', { type: 'warning' })
+    await pointSettlementApi.updateStatus(row.id!, { status: next })
+    ElMessage.success(`${label}成功`)
     loadData()
   } catch {}
 }
@@ -147,6 +170,33 @@ async function loadOptions() {
     acceptanceOptions.value = (acceptances.list || []).map((a: any) => ({ label: a.code, value: a.id }))
   } catch {}
 }
+
+// 按项目级联加载表单的点位/报价/验收选项
+async function loadOptionsByProject(projectId?: string) {
+  formPointOptions.value = []
+  formQuoteOptions.value = []
+  formAcceptanceOptions.value = []
+  if (!projectId) return
+  try {
+    const params: any = { pageNum: 1, pageSize: 200, projectId }
+    const [points, quotes, acceptances] = await Promise.all([
+      maintenancePointApi.page(params),
+      quoteApi.page(params),
+      acceptanceApi.page(params),
+    ]) as any[]
+    formPointOptions.value = (points.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    formQuoteOptions.value = (quotes.list || []).map((q: any) => ({ label: q.customerName ? `${q.code} (${q.customerName})` : q.code, value: q.id }))
+    formAcceptanceOptions.value = (acceptances.list || []).map((a: any) => ({ label: a.code, value: a.id }))
+  } catch {}
+}
+
+// 监听项目变化，级联加载关联选项
+watch(() => form.projectId, (val) => {
+  form.pointId = undefined
+  form.quoteId = undefined
+  form.acceptanceId = undefined
+  loadOptionsByProject(val)
+})
 
 // 根据点位 ID 查找名称
 function pointName(id?: string) {
@@ -234,9 +284,17 @@ onMounted(() => {
         </el-table-column>
         <el-table-column prop="receivedDate" label="回款日期" min-width="120" />
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleEdit(row as PointSettlement)">编辑</el-button>
+            <el-button
+              v-for="flow in (statusFlowMap[(row as PointSettlement).status || ''] || [])"
+              :key="flow.next"
+              link
+              :type="flow.type"
+              size="small"
+              @click="handleStatusFlow(row as PointSettlement, flow.next, flow.label)"
+            >{{ flow.label }}</el-button>
             <el-button link type="danger" size="small" @click="handleDelete(row as PointSettlement)">删除</el-button>
           </template>
         </el-table-column>
@@ -266,35 +324,24 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="点位" prop="pointId">
           <el-select v-model="form.pointId" placeholder="请选择点位" clearable filterable style="width: 100%">
-            <el-option v-for="opt in pointOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+            <el-option v-for="opt in formPointOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="报价">
           <el-select v-model="form.quoteId" placeholder="请选择报价" clearable filterable style="width: 100%">
-            <el-option v-for="opt in quoteOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+            <el-option v-for="opt in formQuoteOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="验收">
           <el-select v-model="form.acceptanceId" placeholder="请选择验收" clearable filterable style="width: 100%">
-            <el-option v-for="opt in acceptanceOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+            <el-option v-for="opt in formAcceptanceOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="结算金额" prop="amount">
           <el-input-number v-model="form.amount" :min="0.01" :precision="2" controls-position="right" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="form.status" style="width: 100%">
-            <el-option v-for="(label, key) in statusMap" :key="key" :label="label" :value="key" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="发票号">
           <el-input v-model="form.invoiceNo" placeholder="发票号" />
-        </el-form-item>
-        <el-form-item label="已回款金额">
-          <el-input-number v-model="form.receivedAmount" :min="0" :precision="2" controls-position="right" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="回款日期">
-          <el-date-picker v-model="form.receivedDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="备注" />

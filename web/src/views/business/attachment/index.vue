@@ -1,10 +1,19 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { attachmentApi, type AttachmentDTO } from '@/api/business'
+import {
+  attachmentApi,
+  contractApi,
+  quoteApi,
+  equipmentApi,
+  acceptanceApi,
+  maintenanceContractApi,
+  type AttachmentDTO,
+} from '@/api/business'
 import type { UploadRawFile, UploadFile } from 'element-plus'
 import FilePreview from '@/components/FilePreview.vue'
 
+interface Option { label: string; value: string }
 interface Row extends AttachmentDTO {}
 
 const loading = ref(false)
@@ -13,8 +22,11 @@ const total = ref(0)
 const query = reactive({ pageNum: 1, pageSize: 10, name: '', businessType: '' })
 
 const businessTypeMap: Record<string, string> = {
-  CONTRACT: '合同', QUOTE: '报价', EQUIPMENT: '设备', ACCEPTANCE: '验收', MAINTENANCE: '维保',
+  CONTRACT: '合同', QUOTE: '报价', EQUIPMENT: '设备', ACCEPTANCE: '验收', MAINTENANCE_CONTRACT: '维保合同',
 }
+
+// 业务对象选项(按 businessType 联动加载)
+const businessIdOptions = ref<Option[]>([])
 
 // 上传
 const uploadDialogVisible = ref(false)
@@ -22,10 +34,43 @@ const uploadFormRef = ref<FormInstance>()
 const uploadForm = reactive({ businessType: 'CONTRACT', businessId: '' })
 const uploadRules = {
   businessType: [{ required: true, message: '请选择业务类型', trigger: 'change' }],
-  businessId: [{ required: true, message: '请输入业务ID', trigger: 'blur' }],
+  businessId: [{ required: true, message: '请选择业务对象', trigger: 'change' }],
 }
 const fileList = ref<File[]>([])
 const uploading = ref(false)
+
+// 根据 businessType 加载对应业务对象列表
+async function loadBusinessIdOptions(businessType: string) {
+  businessIdOptions.value = []
+  if (!businessType) return
+  try {
+    const params = { pageNum: 1, pageSize: 200 }
+    let list: any[] = []
+    if (businessType === 'CONTRACT') {
+      const res: any = await contractApi.page(params)
+      list = (res.list || []).map((c: any) => ({ label: `${c.code} ${c.name || ''}`, value: c.id }))
+    } else if (businessType === 'QUOTE') {
+      const res: any = await quoteApi.page(params)
+      list = (res.list || []).map((q: any) => ({ label: q.customerName ? `${q.code} (${q.customerName})` : q.code, value: q.id }))
+    } else if (businessType === 'EQUIPMENT') {
+      const res: any = await equipmentApi.page(params)
+      list = (res.list || []).map((e: any) => ({ label: `${e.code} ${e.name}`, value: e.id }))
+    } else if (businessType === 'ACCEPTANCE') {
+      const res: any = await acceptanceApi.page(params)
+      list = (res.list || []).map((a: any) => ({ label: a.code, value: a.id }))
+    } else if (businessType === 'MAINTENANCE_CONTRACT') {
+      const res: any = await maintenanceContractApi.page(params)
+      list = (res.list || []).map((m: any) => ({ label: m.code, value: m.id }))
+    }
+    businessIdOptions.value = list
+  } catch {}
+}
+
+// 监听上传表单业务类型变化，联动加载业务对象
+watch(() => uploadForm.businessType, (val) => {
+  uploadForm.businessId = ''
+  loadBusinessIdOptions(val)
+})
 
 // 预览
 const previewVisible = ref(false)
@@ -72,6 +117,7 @@ function openUploadDialog() {
   uploadForm.businessType = 'CONTRACT'
   uploadForm.businessId = ''
   fileList.value = []
+  loadBusinessIdOptions('CONTRACT')
   uploadDialogVisible.value = true
 }
 
@@ -193,8 +239,10 @@ onMounted(() => {
             <el-option v-for="(label, key) in businessTypeMap" :key="key" :label="label" :value="key" />
           </el-select>
         </el-form-item>
-        <el-form-item label="业务ID" prop="businessId">
-          <el-input v-model="uploadForm.businessId" placeholder="关联业务对象的ID" />
+        <el-form-item label="业务对象" prop="businessId">
+          <el-select v-model="uploadForm.businessId" placeholder="请选择业务对象" clearable filterable style="width: 100%">
+            <el-option v-for="opt in businessIdOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="选择文件">
           <el-upload

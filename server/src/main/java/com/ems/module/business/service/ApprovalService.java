@@ -83,16 +83,16 @@ public class ApprovalService {
 
         ApprovalNode firstNode = null;
         for (ApprovalNode node : nodes) {
-            // amount_threshold 为 NULL 表示无上限,始终满足
+            // amount_threshold 为 NULL 表示无下限,始终满足;业务金额 >= 阈值时命中该节点
             if (node.getAmountThreshold() == null
-                    || node.getAmountThreshold().compareTo(businessAmount) >= 0) {
+                    || node.getAmountThreshold().compareTo(businessAmount) <= 0) {
                 firstNode = node;
                 break;
             }
         }
-        // 如果所有节点阈值都小于业务金额,取最后一个节点作为兜底
+        // 如果所有节点阈值都大于业务金额,取第一个节点作为兜底(最小金额走第一个节点)
         if (firstNode == null) {
-            firstNode = nodes.get(nodes.size() - 1);
+            firstNode = nodes.get(0);
         }
         ApprovalLog log = new ApprovalLog();
         log.setFlowId(flow.getId());
@@ -130,7 +130,7 @@ public class ApprovalService {
         }
 
         CurrentUser user = SecurityContext.get();
-        if (user == null) {
+        if (user == null || user.getUserId() == null) {
             throw new BusinessException(401, "未登录");
         }
 
@@ -149,6 +149,11 @@ public class ApprovalService {
             }
         }
 
+        // 审批结果校验:必须为 APPROVED 或 REJECTED(校验在 DB 更新之前)
+        if (!"APPROVED".equals(result) && !"REJECTED".equals(result)) {
+            throw new BusinessException("无效的审批结果");
+        }
+
         // 并发审批竞态条件:用 SQL 条件更新(result IS NULL)避免并发重复审批
         int updated = approvalLogMapper.update(null,
                 new LambdaUpdateWrapper<ApprovalLog>()
@@ -163,11 +168,6 @@ public class ApprovalService {
         }
         // 重新查询 log 获取完整数据用于后续流程
         log = approvalLogMapper.selectById(logId);
-
-        // 审批结果校验:必须为 APPROVED 或 REJECTED
-        if (!"APPROVED".equals(result) && !"REJECTED".equals(result)) {
-            throw new BusinessException("无效的审批结果");
-        }
 
         if ("REJECTED".equals(result)) {
             updateBusinessApprovalStatus(log.getBusinessType(), log.getBusinessId(), "REJECTED");

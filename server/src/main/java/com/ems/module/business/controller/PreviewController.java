@@ -15,6 +15,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -22,6 +26,8 @@ import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Set;
 
 @RestController
@@ -33,6 +39,13 @@ public class PreviewController {
     private final AttachmentService attachmentService;
     private final PreviewLogService previewLogService;
 
+    /** 需要加水印的图片类型 */
+    private static final Set<String> IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
+    /** 安全预览白名单类型(可 inline 展示) */
+    private static final Set<String> SAFE_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/gif", "image/webp",
+            "application/pdf", "text/plain", "video/mp4");
+
     @GetMapping("/{attachmentId}")
     @RequirePermission("business:attachment:list")
     public void preview(@PathVariable Long attachmentId,
@@ -43,10 +56,18 @@ public class PreviewController {
             throw new BusinessException("附件不存在");
         }
 
-        // 业务权限校验:超管或附件创建人本人可访问(最低限度校验,完整数据权限由列表接口 @DataScope 保证)
+        // 业务权限校验:超管或附件创建人本人或当前用户 dataScope<=3(本部门及以下)可访问
         Long currentUserId = SecurityContext.getUserId();
-        if (currentUserId == null || (!SecurityContext.isAdmin() && !currentUserId.equals(attachment.getCreateBy()))) {
+        if (currentUserId == null) {
             throw new BusinessException(403, "无权访问该附件");
+        }
+        boolean allowed = SecurityContext.isAdmin()
+                || currentUserId.equals(attachment.getCreateBy());
+        if (!allowed) {
+            Integer dataScope = SecurityContext.get() != null ? SecurityContext.get().getDataScope() : null;
+            if (dataScope == null || dataScope > 3) {
+                throw new BusinessException(403, "无权访问该附件");
+            }
         }
 
         // 解析文件物理路径(与 AttachmentController 上传逻辑保持一致)
@@ -74,22 +95,60 @@ public class PreviewController {
                 resolveClientIp(request)
         );
 
-        // Content-Type 白名单:非白名单类型强制下载,防止 XSS
-        Set<String> safeTypes = Set.of("image/jpeg", "image/png", "image/gif", "image/webp",
-                "application/pdf", "text/plain", "video/mp4");
         String contentType = attachment.getFileType();
         String encodedName = URLEncoder.encode(attachment.getName(), "UTF-8").replace("+", "%20");
-        if (!safeTypes.contains(contentType)) {
+
+        // 非白名单类型(Office 等):强制下载并提示
+        if (!SAFE_TYPES.contains(contentType)) {
             response.setContentType("application/octet-stream");
             response.setHeader("Content-Disposition", "attachment; filename=\"" + encodedName + "\"");
-        } else {
-            response.setContentType(contentType);
-            response.setHeader("Content-Disposition", "inline; filename=\"" + encodedName + "\"");
+            response.setHeader("X-Preview-Message", "请下载查看");
+            response.setHeader("X-Content-Type-Options", "nosniff");
+            response.setContentLengthLong(Files.size(filePath));
+            try (InputStream in = Files.newInputStream(filePath);
+                 OutputStream out = response.getOutputStream()) {
+                byte[] buffer = new byte[8192];
+                int len;
+                while ((len = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, len);
+                }
+                out.flush();
+            }
+            return;
         }
-        response.setHeader("X-Content-Type-Options", "nosniff");
-        response.setContentLengthLong(Files.size(filePath));
 
-        // 写文件流
+        // 白名单类型 inline 展示
+        response.setContentType(contentType);
+        response.setHeader("Content-Disposition", "inline; filename=\"" + encodedName + "\"");
+        response.setHeader("X-Content-Type-Options", "nosniff");
+
+        // 图片预览:叠加水印(用户名+时间戳),半透明灰色文字,斜向重复
+        if (IMAGE_TYPES.contains(contentType)) {
+            try {
+                BufferedImage image = ImageIO.read(filePath.toFile());
+                if (image != null) {
+                    BufferedImage watermarked = addWatermark(image);
+                    String formatName = contentType.substring(contentType.indexOf("/") + 1);
+                    if ("jpeg".equals(formatName)) formatName = "jpg";
+                    response.setContentLengthLong(-1);
+                    OutputStream out = response.getOutputStream();
+                    ImageIO.write(watermarked, formatName, out);
+                    out.flush();
+                    return;
+                }
+            } catch (Exception e) {
+                log.warn("图片水印处理失败,回退原始文件流: {}", e.getMessage());
+            }
+        }
+
+        // PDF 预览:TODO PDF 水印需要 iText/PDFBox 依赖,暂标注待实现,当前直接输出原始流
+        if ("application/pdf".equals(contentType)) {
+            // TODO: PDF 水印需要引入 iText/PDFBox 依赖,解析 PDF 页面后叠加水印文字,暂标注待实现
+            log.debug("PDF 预览暂未实现水印,直接输出原始文件: {}", attachment.getName());
+        }
+
+        // 默认:直接写文件流(含 text/plain、video/mp4、PDF 及水印失败回退)
+        response.setContentLengthLong(Files.size(filePath));
         try (InputStream in = Files.newInputStream(filePath);
              OutputStream out = response.getOutputStream()) {
             byte[] buffer = new byte[8192];
@@ -99,6 +158,50 @@ public class PreviewController {
             }
             out.flush();
         }
+    }
+
+    /**
+     * 为图片叠加水印:用户名+时间戳,半透明灰色文字,斜向(-30度)重复平铺。
+     */
+    private BufferedImage addWatermark(BufferedImage original) {
+        int w = original.getWidth();
+        int h = original.getHeight();
+        // 创建带 alpha 通道的目标图(保证水印透明度可正确合成)
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = result.createGraphics();
+        try {
+            // 绘制原图背景
+            g.drawImage(original, 0, 0, null);
+            // 水印文字:用户名 + 时间戳
+            String username = SecurityContext.get() != null && SecurityContext.get().getUsername() != null
+                    ? SecurityContext.get().getUsername() : "unknown";
+            String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String watermarkText = username + " " + time;
+
+            // 半透明灰色文字
+            g.setColor(new Color(128, 128, 128, 80));
+            int fontSize = Math.max(12, Math.min(w, h) / 20);
+            g.setFont(new Font("SansSerif", Font.BOLD, fontSize));
+            // 斜向 -30 度
+            g.setTransform(AffineTransform.getRotateInstance(Math.toRadians(-30), w / 2.0, h / 2.0));
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+
+            // 斜向重复平铺
+            FontMetrics fm = g.getFontMetrics();
+            int textWidth = fm.stringWidth(watermarkText);
+            int textHeight = fm.getHeight();
+            int stepX = textWidth + 80;
+            int stepY = textHeight + 60;
+            // 覆盖比图片更大的区域以填满旋转后可视区
+            for (int y = -h; y < h * 2; y += stepY) {
+                for (int x = -w; x < w * 2; x += stepX) {
+                    g.drawString(watermarkText, x, y);
+                }
+            }
+        } finally {
+            g.dispose();
+        }
+        return result;
     }
 
     /**

@@ -59,11 +59,8 @@ public class AttachmentController {
         if (attachment == null) {
             throw new BusinessException("附件不存在");
         }
-        // 业务权限校验:超管或附件创建人本人可访问(最低限度校验,完整数据权限由列表接口 @DataScope 保证)
-        Long currentUserId = SecurityContext.getUserId();
-        if (currentUserId == null || (!SecurityContext.isAdmin() && !currentUserId.equals(attachment.getCreateBy()))) {
-            throw new BusinessException(403, "无权访问该附件");
-        }
+        // 业务权限校验:超管或附件创建人本人或当前用户 dataScope<=3(本部门及以下)可访问
+        checkAttachmentAccess(attachment);
         return Result.success(attachment);
     }
 
@@ -116,11 +113,8 @@ public class AttachmentController {
         if (attachment == null) {
             throw new BusinessException("附件不存在");
         }
-        // 业务权限校验:超管或附件创建人本人可访问(最低限度校验,完整数据权限由列表接口 @DataScope 保证)
-        Long currentUserId = SecurityContext.getUserId();
-        if (currentUserId == null || (!SecurityContext.isAdmin() && !currentUserId.equals(attachment.getCreateBy()))) {
-            throw new BusinessException(403, "无权访问该附件");
-        }
+        // 业务权限校验:超管或附件创建人本人或当前用户 dataScope<=3(本部门及以下)可访问
+        checkAttachmentAccess(attachment);
         String relative = attachment.getFilePath().startsWith("/")
                 ? attachment.getFilePath().substring(1) : attachment.getFilePath();
         // 路径遍历修复:规范化后校验是否在 uploads 基目录下
@@ -147,11 +141,8 @@ public class AttachmentController {
         if (attachment == null) {
             throw new BusinessException("附件不存在");
         }
-        // 归属校验
-        Long currentUserId = SecurityContext.getUserId();
-        if (currentUserId == null || (!SecurityContext.isAdmin() && !currentUserId.equals(attachment.getCreateBy()))) {
-            throw new BusinessException(403, "无权删除他人附件");
-        }
+        // 归属校验:超管或附件创建人本人或当前用户 dataScope<=3(本部门及以下)可删除
+        checkAttachmentAccess(attachment);
         // 删除物理文件
         String relative = attachment.getFilePath().startsWith("/")
                 ? attachment.getFilePath().substring(1) : attachment.getFilePath();
@@ -162,5 +153,29 @@ public class AttachmentController {
         }
         attachmentService.delete(id);
         return Result.success();
+    }
+
+    /**
+     * 附件访问权限校验:超管或附件创建人本人或当前用户 dataScope<=3(本部门及以下)时允许。
+     * 简化方案:避免逐业务实体校验,基于数据权限范围放行。
+     */
+    private void checkAttachmentAccess(Attachment attachment) {
+        Long currentUserId = SecurityContext.getUserId();
+        if (currentUserId == null) {
+            throw new BusinessException(403, "无权访问该附件");
+        }
+        if (SecurityContext.isAdmin()) {
+            return;
+        }
+        if (currentUserId.equals(attachment.getCreateBy())) {
+            return;
+        }
+        // dataScope<=3(本部门及以下)允许访问
+        com.ems.security.context.CurrentUser user = SecurityContext.get();
+        Integer dataScope = user != null ? user.getDataScope() : null;
+        if (dataScope != null && dataScope <= 3) {
+            return;
+        }
+        throw new BusinessException(403, "无权访问该附件");
     }
 }

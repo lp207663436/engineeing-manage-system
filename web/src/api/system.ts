@@ -1,5 +1,13 @@
 import request from '@/utils/request'
 
+// 通用分页结果
+export interface PageResult<T> {
+  list: T[]
+  total: number
+  pageNum?: number
+  pageSize?: number
+}
+
 // ===== 用户 =====
 export interface SysUserDTO {
   id?: string
@@ -13,14 +21,14 @@ export interface SysUserDTO {
 }
 
 export const userApi = {
-  page: (params: { pageNum: number; pageSize: number; name?: string; deptId?: string }) =>
+  page: (params: { pageNum: number; pageSize: number; name?: string; deptId?: string }): Promise<PageResult<SysUserDTO>> =>
     request.get('/sys/user/page', { params }),
-  create: (data: SysUserDTO) => request.post('/sys/user', data),
-  update: (data: SysUserDTO) => request.put('/sys/user', data),
-  delete: (id: string) => request.delete(`/sys/user/${id}`),
-  assignRoles: (data: { userId: string; roleIds: string[] }) =>
+  create: (data: SysUserDTO): Promise<SysUserDTO> => request.post('/sys/user', data),
+  update: (data: SysUserDTO): Promise<SysUserDTO> => request.put('/sys/user', data),
+  delete: (id: string): Promise<void> => request.delete(`/sys/user/${id}`),
+  assignRoles: (data: { userId: string; roleIds: string[] }): Promise<void> =>
     request.post('/sys/user/assignRoles', data),
-  getRoleIds: (userId: string) => request.get(`/sys/user/roleIds/${userId}`),
+  getRoleIds: (userId: string): Promise<string[]> => request.get(`/sys/user/roleIds/${userId}`),
 }
 
 // ===== 角色 =====
@@ -35,13 +43,15 @@ export interface SysRoleDTO {
 }
 
 export const roleApi = {
-  page: (params: { pageNum: number; pageSize: number; name?: string }) =>
+  page: (params: { pageNum: number; pageSize: number; name?: string }): Promise<PageResult<SysRoleDTO>> =>
     request.get('/sys/role/page', { params }),
-  list: () => request.get('/sys/role/list'),
-  create: (data: SysRoleDTO) => request.post('/sys/role', data),
-  update: (data: SysRoleDTO) => request.put('/sys/role', data),
-  delete: (id: string) => request.delete(`/sys/role/${id}`),
-  getMenuIds: (roleId: string) => request.get(`/sys/role/menuIds/${roleId}`),
+  list: (): Promise<SysRoleDTO[]> => request.get('/sys/role/list'),
+  create: (data: SysRoleDTO): Promise<SysRoleDTO> => request.post('/sys/role', data),
+  update: (data: SysRoleDTO): Promise<SysRoleDTO> => request.put('/sys/role', data),
+  delete: (id: string): Promise<void> => request.delete(`/sys/role/${id}`),
+  getMenuIds: (roleId: string): Promise<number[]> => request.get(`/sys/role/menuIds/${roleId}`),
+  assignMenus: (id: string | number, menuIds: number[]): Promise<void> =>
+    request.post(`/sys/role/${id}/menus`, { menuIds }),
 }
 
 // ===== 菜单 =====
@@ -106,14 +116,14 @@ export interface SysDictItemDTO {
 
 export const dictApi = {
   page: (params: { pageNum: number; pageSize: number; name?: string; code?: string }) =>
-    request.get('/system/dict/page', { params }),
-  list: () => request.get('/system/dict/list'),
-  create: (data: SysDictDTO) => request.post('/system/dict', data),
-  update: (data: SysDictDTO) => request.put('/system/dict', data),
-  delete: (id: string) => request.delete(`/system/dict/${id}`),
-  itemsByCode: (code: string) => request.get(`/system/dict/itemsByCode`, { params: { code } }),
-  itemsByDictId: (dictId: string) => request.get(`/system/dict/itemsByDictId`, { params: { dictId } }),
-  itemCreate: (data: SysDictItemDTO) => request.post('/system/dict/item', data),
-  itemUpdate: (data: SysDictItemDTO) => request.put('/system/dict/item', data),
-  itemDelete: (id: string) => request.delete(`/system/dict/item/${id}`),
+    request.get('/sys/dict/page', { params }),
+  list: () => request.get('/sys/dict/list'),
+  create: (data: SysDictDTO) => request.post('/sys/dict', data),
+  update: (data: SysDictDTO) => request.put('/sys/dict', data),
+  delete: (id: string) => request.delete(`/sys/dict/${id}`),
+  itemsByCode: (code: string) => request.get(`/sys/dict/itemsByCode`, { params: { code } }),
+  itemsByDictId: (dictId: string) => request.get(`/sys/dict/itemsByDictId`, { params: { dictId } }),
+  itemCreate: (data: SysDictItemDTO) => request.post('/sys/dict/item', data),
+  itemUpdate: (data: SysDictItemDTO) => request.put('/sys/dict/item', data),
+  itemDelete: (id: string) => request.delete(`/sys/dict/item/${id}`),
 }

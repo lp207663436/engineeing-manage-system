@@ -52,6 +52,7 @@ public class MaintenanceTaskService {
     public MaintenanceTask get(Long id) {
         MaintenanceTask t = maintenanceTaskMapper.selectById(id);
         if (t == null) throw new BusinessException("维保工单不存在");
+        DataScopeHelper.checkOwnership(t.getCreateBy());
         return t;
     }
 
@@ -69,6 +70,7 @@ public class MaintenanceTaskService {
 
     public void update(MaintenanceTaskDTO dto) {
         MaintenanceTask existing = get(dto.getId());
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         BeanUtils.copyProperties(dto, existing);
         if (StringUtils.hasText(dto.getPlanDate())) existing.setPlanDate(LocalDate.parse(dto.getPlanDate()));
         if (StringUtils.hasText(dto.getPlanInspectDate())) existing.setPlanInspectDate(LocalDate.parse(dto.getPlanInspectDate()));
@@ -190,6 +192,7 @@ public class MaintenanceTaskService {
         MaintenanceTask existing = get(id);
         if ("PROCESSING".equals(existing.getStatus()) || "CLOSED".equals(existing.getStatus()))
             throw new BusinessException("处理中或已关闭的工单不可删除");
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         maintenanceTaskMapper.deleteById(id);
     }
 

@@ -39,6 +39,7 @@ public class MaintenanceRecordService {
     public MaintenanceRecord get(Long id) {
         MaintenanceRecord r = maintenanceRecordMapper.selectById(id);
         if (r == null) throw new BusinessException("维保记录不存在");
+        DataScopeHelper.checkOwnership(r.getCreateBy());
         return r;
     }
 
@@ -53,13 +54,15 @@ public class MaintenanceRecordService {
 
     public void update(MaintenanceRecordDTO dto) {
         MaintenanceRecord existing = get(dto.getId());
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         BeanUtils.copyProperties(dto, existing);
         if (StringUtils.hasText(dto.getRecordDate())) existing.setRecordDate(LocalDate.parse(dto.getRecordDate()));
         maintenanceRecordMapper.updateById(existing);
     }
 
     public void delete(Long id) {
-        get(id);
+        MaintenanceRecord existing = get(id);
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         maintenanceRecordMapper.deleteById(id);
     }
 

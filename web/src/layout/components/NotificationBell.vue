@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Bell } from 'lucide-vue-next'
 import { notificationApi, type SysNotification, type NotificationType } from '@/api/system'
@@ -75,8 +75,19 @@ function formatTime(t?: string) {
   return t.replace('T', ' ').slice(0, 16)
 }
 
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   loadCount()
+  // 30 秒轮询刷新未读数量
+  pollTimer = setInterval(loadCount, 30000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
 })
 </script>
 

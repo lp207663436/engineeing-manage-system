@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/system/dict")
+@RequestMapping("/sys/dict")
 @RequiredArgsConstructor
 public class SysDictController {
 

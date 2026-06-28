@@ -43,7 +43,7 @@ const columns = computed(() => {
 
 async function loadProjects() {
   try {
-    const res: any = await projectApi.page({ pageNum: 1, pageSize: 1000, name: undefined as any, type: undefined as any, status: undefined as any })
+    const res: any = await projectApi.page({ pageNum: 1, pageSize: 200, name: undefined as any, type: undefined as any, status: undefined as any })
     const list = res.list || []
     projectOptions.value = list.map((p: any) => ({ label: `${p.code} - ${p.name}`, value: p.id }))
     if (list.length > 0) {
@@ -57,7 +57,7 @@ async function loadProgress() {
   if (!projectId.value) return
   loading.value = true
   try {
-    const res: any = await progressApi.page({ pageNum: 1, pageSize: 1000, projectId: projectId.value })
+    const res: any = await progressApi.page({ pageNum: 1, pageSize: 200, projectId: projectId.value })
     allList.value = res.list || []
   } catch (e: any) {
     ElMessage.error(e?.message || '加载进度失败')

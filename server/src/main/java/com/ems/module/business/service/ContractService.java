@@ -36,6 +36,7 @@ public class ContractService {
     public Contract get(Long id) {
         Contract c = contractMapper.selectById(id);
         if (c == null) throw new BusinessException("合同不存在");
+        DataScopeHelper.checkOwnership(c.getCreateBy());
         return c;
     }
 
@@ -53,6 +54,7 @@ public class ContractService {
 
     public void update(ContractDTO dto) {
         Contract existing = get(dto.getId());
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         BeanUtils.copyProperties(dto, existing);
         if (StringUtils.hasText(dto.getSignDate())) existing.setSignDate(LocalDate.parse(dto.getSignDate()));
         if (StringUtils.hasText(dto.getStartDate())) existing.setStartDate(LocalDate.parse(dto.getStartDate()));
@@ -61,7 +63,8 @@ public class ContractService {
     }
 
     public void delete(Long id) {
-        get(id);
+        Contract existing = get(id);
+        DataScopeHelper.checkOwnership(existing.getCreateBy());
         contractMapper.deleteById(id);
     }
 }

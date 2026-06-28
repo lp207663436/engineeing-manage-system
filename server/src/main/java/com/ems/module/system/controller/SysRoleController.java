@@ -59,4 +59,22 @@ public class SysRoleController {
     public Result<List<Long>> getMenuIds(@PathVariable Long roleId) {
         return Result.success(roleService.getMenuIds(roleId));
     }
+
+    /**
+     * 分配菜单:仅接收 menuIds,不触碰角色基本信息,避免清空角色名。
+     */
+    @PostMapping("/{id}/menus")
+    @RequirePermission("system:role:edit")
+    public Result<Void> assignMenus(@PathVariable Long id, @RequestBody AssignMenusRequest request) {
+        roleService.assignMenus(id, request.getMenuIds());
+        return Result.success();
+    }
+
+    /**
+     * 分配菜单请求体
+     */
+    @lombok.Data
+    public static class AssignMenusRequest {
+        private List<Long> menuIds;
+    }
 }

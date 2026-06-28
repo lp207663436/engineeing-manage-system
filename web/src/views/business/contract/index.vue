@@ -182,7 +182,7 @@ async function loadOptions() {
       projectApi.page({ pageNum: 1, pageSize: 200 }),
       customerApi.list(),
       supplierApi.list(),
-      userApi.page({ pageNum: 1, pageSize: 999 }),
+      userApi.page({ pageNum: 1, pageSize: 200 }),
     ]) as any[]
     projectOptions.value = (proj.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
     customerOptions.value = (customers || []).map((c: any) => ({ label: c.name, value: c.id }))
@@ -341,9 +341,10 @@ onMounted(() => {
           <el-date-picker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="form.status" style="width: 100%">
-            <el-option v-for="(label, key) in statusMap" :key="key" :label="label" :value="key" />
-          </el-select>
+          <el-tag :type="statusTagType[form.status || ''] || 'info'" size="small" effect="light">
+            {{ statusMap[form.status || ''] || form.status || '-' }}
+          </el-tag>
+          <span style="margin-left: 8px; color: #909399; font-size: 12px">状态由系统流转控制</span>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="备注" />

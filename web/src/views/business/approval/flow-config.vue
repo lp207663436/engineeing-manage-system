@@ -171,6 +171,10 @@ async function handleSaveNodes() {
       ElMessage.warning('节点名称不能为空')
       return
     }
+    if (!n.approverRoleId) {
+      ElMessage.warning('请选择审批角色')
+      return
+    }
   }
   try {
     await approvalApi.flowSaveNodes(currentFlow.value.id, nodeList.value)

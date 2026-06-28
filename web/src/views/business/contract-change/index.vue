@@ -49,12 +49,17 @@ const statusTagType: Record<string, string> = {
   REJECTED: 'danger',
 }
 
-async function loadContracts() {
+async function loadContracts(query?: string) {
   try {
-    const res: any = await contractApi.page({ pageNum: 1, pageSize: 1000 })
+    const res: any = await contractApi.page({ pageNum: 1, pageSize: 50, name: query || undefined })
     const list = res.list || []
     contractOptions.value = list.map((c: any) => ({ label: `${c.code} - ${c.name}`, value: c.id }))
   } catch {}
+}
+
+// 远程搜索合同
+async function remoteContract(query: string) {
+  await loadContracts(query)
 }
 
 async function loadData() {
@@ -88,6 +93,7 @@ function handleAdd() {
     supplementFileId: '', approverId: '', status: 'NONE', remark: '',
   })
   fileList.value = []
+  pendingFile.value = null
   dialogVisible.value = true
 }
 
@@ -106,20 +112,31 @@ function handleEdit(row: Row) {
   dialogVisible.value = true
 }
 
-// 补充文件上传:调用已有 attachmentApi.upload,成功后绑定附件 ID
+// 待上传的文件(新增时暂存,创建成功后再上传)
+const pendingFile = ref<File | null>(null)
+
+// 补充文件上传:编辑时直接上传;新增时暂存文件,创建后再上传
 async function handleUpload(opts: UploadRequestOptions) {
-  try {
-    const res: any = await attachmentApi.upload(opts.file as File, 'CONTRACT_CHANGE', form.id || '')
-    form.supplementFileId = res?.id
-    fileList.value = [{ name: res?.name || (opts.file as File).name, url: res?.filePath || '', id: res?.id }]
-    ElMessage.success('上传成功')
-  } catch {
-    ElMessage.error('上传失败')
+  const file = opts.file as File
+  if (isEdit.value && form.id) {
+    try {
+      const res: any = await attachmentApi.upload(file, 'CONTRACT_CHANGE', form.id)
+      form.supplementFileId = res?.id
+      fileList.value = [{ name: res?.name || file.name, url: res?.filePath || '', id: res?.id }]
+      ElMessage.success('上传成功')
+    } catch {
+      ElMessage.error('上传失败')
+    }
+  } else {
+    // 新增时暂存文件,提交后回绑
+    pendingFile.value = file
+    fileList.value = [{ name: file.name, url: '', id: '' }]
   }
 }
 
 function handleRemove() {
   form.supplementFileId = ''
+  pendingFile.value = null
   fileList.value = []
 }
 
@@ -132,8 +149,19 @@ async function handleSubmit() {
         await contractChangeApi.update(form)
         ElMessage.success('更新成功')
       } else {
-        await contractChangeApi.create(form)
+        const res: any = await contractChangeApi.create(form)
         ElMessage.success('新增成功')
+        // 新增成功后,上传暂存的附件并回绑 businessId
+        const newId = res?.id || res
+        if (pendingFile.value && newId) {
+          try {
+            const attRes: any = await attachmentApi.upload(pendingFile.value, 'CONTRACT_CHANGE', newId)
+            await contractChangeApi.update({ ...form, id: newId, supplementFileId: attRes?.id })
+          } catch {
+            ElMessage.warning('附件上传失败,可稍后在编辑中重新上传')
+          }
+          pendingFile.value = null
+        }
       }
       dialogVisible.value = false
       loadData()
@@ -256,7 +284,15 @@ onMounted(() => {
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="640px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="合同" prop="contractId">
-          <el-select v-model="form.contractId" placeholder="选择合同" filterable clearable style="width: 100%">
+          <el-select
+            v-model="form.contractId"
+            placeholder="选择合同"
+            filterable
+            remote
+            :remote-method="remoteContract"
+            clearable
+            style="width: 100%"
+          >
             <el-option v-for="opt in contractOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>

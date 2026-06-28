@@ -72,7 +72,7 @@ onMounted(() => {
     </div>
 
     <el-row :gutter="16">
-      <el-col v-for="card in cards" :key="card.key" :span="8">
+      <el-col v-for="card in cards" :key="card.key" :xs="24" :sm="12" :md="8">
         <el-card class="stat-card" shadow="hover" @click="go(card.path)">
           <div class="stat-inner">
             <div class="stat-icon" :style="{ background: card.color + '1A', color: card.color }">

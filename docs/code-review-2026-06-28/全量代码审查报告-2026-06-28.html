@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>engine-manage-system 全量代码审查报告</title>
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --border: #e4e7ed;
+    --text: #303133;
+    --text-secondary: #606266;
+    --text-tertiary: #909399;
+    --primary: #409eff;
+    --severe: #f56c6c;
+    --severe-bg: #fef0f0;
+    --warn: #e6a23c;
+    --warn-bg: #fdf6ec;
+    --info: #409eff;
+    --info-bg: #ecf5ff;
+    --success: #67c23a;
+    --success-bg: #f0f9eb;
+    --code-bg: #f6f8fa;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #fff;
+    padding: 40px 32px;
+    border-radius: 12px;
+    margin-bottom: 28px;
+  }
+  .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .header .meta { font-size: 14px; opacity: 0.8; }
+  .header .meta span { margin-right: 20px; }
+
+  /* Stats */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 24px;
+    text-align: center;
+    border: 1px solid var(--border);
+    transition: transform 0.2s;
+  }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .stat-card .num { font-size: 36px; font-weight: 700; }
+  .stat-card .label { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+  .stat-card.severe .num { color: var(--severe); }
+  .stat-card.warn .num { color: var(--warn); }
+  .stat-card.info .num { color: var(--info); }
+  .stat-card.total .num { color: var(--text); }
+
+  /* Module stats table */
+  .module-stats {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .module-stats h3 { font-size: 18px; margin-bottom: 16px; }
+  .module-stats table { width: 100%; border-collapse: collapse; }
+  .module-stats th, .module-stats td {
+    padding: 10px 14px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .module-stats th { background: #f9fafc; font-weight: 600; color: var(--text-secondary); font-size: 13px; }
+  .module-stats td:first-child { text-align: left; font-weight: 500; }
+
+  /* Section */
+  .section {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 28px;
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .section h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section h2 .icon { font-size: 24px; }
+  .section .section-desc { color: var(--text-secondary); font-size: 14px; margin-bottom: 20px; }
+
+  /* Issue card */
+  .issue {
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    border-left: 4px solid;
+  }
+  .issue.severe { border-color: var(--severe); background: var(--severe-bg); }
+  .issue.warn { border-color: var(--warn); background: var(--warn-bg); }
+  .issue.info { border-color: var(--info); background: var(--info-bg); }
+  .issue-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .badge.severe { background: var(--severe); }
+  .badge.warn { background: var(--warn); }
+  .badge.info { background: var(--info); }
+  .badge.biz { background: #8e44ad; }
+  .badge.tech { background: #2980b9; }
+  .badge.cross { background: #e74c3c; }
+  .issue-title { font-weight: 600; font-size: 15px; }
+  .issue-body { font-size: 14px; color: var(--text-secondary); }
+  .issue-body p { margin-bottom: 6px; }
+  .issue-body code, .issue-body .file {
+    background: var(--code-bg);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    font-size: 13px;
+    color: #c0392b;
+  }
+  .issue-body .fix {
+    background: var(--success-bg);
+    border-left: 3px solid var(--success);
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-top: 8px;
+    color: var(--text);
+  }
+  .issue-body .fix strong { color: var(--success); }
+
+  /* Priority roadmap */
+  .priority-list { list-style: none; }
+  .priority-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+  }
+  .priority-item .p-badge {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; color: #fff;
+  }
+  .priority-item.p1 .p-badge { background: var(--severe); }
+  .priority-item.p2 .p-badge { background: var(--warn); }
+  .priority-item.p3 .p-badge { background: var(--info); }
+  .priority-item .p-content { flex: 1; }
+  .priority-item .p-content strong { font-size: 14px; }
+  .priority-item .p-content span { font-size: 13px; color: var(--text-secondary); }
+
+  /* TOC */
+  .toc {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 20px 28px;
+    border: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .toc h3 { font-size: 16px; margin-bottom: 10px; }
+  .toc ul { list-style: none; }
+  .toc li { padding: 4px 0; }
+  .toc a { color: var(--primary); text-decoration: none; font-size: 14px; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* Pass list */
+  .pass-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .pass-item {
+    background: var(--success-bg);
+    border: 1px solid #c2e7b0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #529252;
+  }
+  .pass-item::before { content: "✓ "; font-weight: bold; }
+
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .pass-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>engine-manage-system 全量代码审查报告</h1>
+  <div class="meta">
+    <span>审查日期：2026-06-28</span>
+    <span>审查范围：全部代码（后端业务 + 后端系统/安全 + 前端）</span>
+    <span>审查维度：业务合理性 + 代码逻辑</span>
+  </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h3>目录</h3>
+  <ul>
+    <li><a href="#summary">一、审查概述与问题统计</a></li>
+    <li><a href="#cross">二、跨层关键问题（最高优先级）</a></li>
+    <li><a href="#backend-biz">三、后端业务模块审查</a></li>
+    <li><a href="#backend-sys">四、后端系统与安全模块审查</a></li>
+    <li><a href="#frontend">五、前端模块审查</a></li>
+    <li><a href="#passed">六、审查通过项</a></li>
+    <li><a href="#roadmap">七、修复优先级路线图</a></li>
+  </ul>
+</div>
+
+<!-- Summary -->
+<div id="summary" class="section">
+  <h2><span class="icon">📊</span> 审查概述与问题统计</h2>
+  <div class="section-desc">
+    本次审查覆盖项目全部代码：后端 Java 文件约 100 个（业务模块 + 系统模块 + 安全模块 + 基础设施）、前端 Vue/TS 文件约 50 个、数据库 Schema 与配置文件。从<strong>业务合理性</strong>（需求符合度、业务流程完整性、状态机正确性）和<strong>代码逻辑</strong>（事务、并发、安全、性能、类型安全）两个维度逐一审查。
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card severe"><div class="num">18</div><div class="label">严重（必须修复）</div></div>
+    <div class="stat-card warn"><div class="num">45</div><div class="label">警告（建议修复）</div></div>
+    <div class="stat-card info"><div class="num">37</div><div class="label">建议（优化改进）</div></div>
+    <div class="stat-card total"><div class="num">100</div><div class="label">问题总计</div></div>
+  </div>
+
+  <div class="module-stats">
+    <h3>各模块问题分布</h3>
+    <table>
+      <thead>
+        <tr><th>模块</th><th>严重</th><th>警告</th><th>建议</th><th>合计</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>后端业务模块（合同/报价/验收/结算/审批/维保）</td><td style="color:var(--severe);font-weight:700">5</td><td style="color:var(--warn);font-weight:700">11</td><td>12</td><td>28</td></tr>
+        <tr><td>后端系统与安全（用户/角色/权限/JWT/配置/DB）</td><td style="color:var(--severe);font-weight:700">11</td><td style="color:var(--warn);font-weight:700">14</td><td>9</td><td>34</td></tr>
+        <tr><td>前端模块（Vue3 + TS + Element Plus）</td><td style="color:var(--severe);font-weight:700">2</td><td style="color:var(--warn);font-weight:700">20</td><td>16</td><td>38</td></tr>
+        <tr style="font-weight:700;background:#f9fafc"><td>合计</td><td>18</td><td>45</td><td>37</td><td>100</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Cross-cutting -->
+<div id="cross" class="section">
+  <h2><span class="icon">🔴</span> 跨层关键问题（最高优先级）</h2>
+  <div class="section-desc">以下问题横跨前端、后端、数据库或文档多层，影响面广，需优先统一修复。</div>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span>
+      <span class="badge cross">跨层</span>
+      <span class="issue-title">数据权限范围定义三方不一致，导致越权或漏权</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>影响层：</strong>后端代码 + 前端展示 + 项目文档</p>
+      <p><strong>后端定义（一致）：</strong><code>DataScopeHelper.java</code> / <code>DataScope.java</code> / <code>schema.sql</code> 均为 <code>1=全部, 2=本部门, 3=本部门及以下, 4=本人</code></p>
+      <p><strong>前端表格展示映射（错误）：</strong><code>role/index.vue</code> L94 <code>dataScopeMap = { 1:'全部', 2:'本部门', 3:'本人', 4:'本部门及下属' }</code> — 3 与 4 互换</p>
+      <p><strong>前端编辑下拉（正确）：</strong>同文件 L155-158 <code>1:全部数据, 2:本部门, 3:本部门及下属, 4:本人</code> — 与后端一致</p>
+      <p><strong>项目文档（完全相反）：</strong><code>project_memory.md</code> 记录 <code>1本人/2本部门/3本部门及下属/4全部</code></p>
+      <p><strong>后果：</strong>管理员在列表看到 dataScope=3 显示"本人"，编辑时下拉却选中"本部门及下属"，配置结果与预期相反，造成越权或漏权。</p>
+      <div class="fix"><strong>修复建议：</strong>统一前端 <code>dataScopeMap</code> 为 <code>{1:'全部',2:'本部门',3:'本部门及下属',4:'本人'}</code>；更新 <code>project_memory.md</code> 使其与代码一致。</div>
+    </div>
+  </div>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span>
+      <span class="badge cross">跨层</span>
+      <span class="issue-title">水平越权漏洞——所有业务模块 get/update/delete 无数据权限校验</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>影响层：</strong>后端所有业务 Service + 前端路由权限</p>
+      <p><strong>后端：</strong>数据权限（<code>@DataScope</code> + <code>DataScopeHelper.applyTo</code>）仅在分页列表查询时生效。<code>get(id)</code>、<code>update(dto)</code>、<code>delete(id)</code> 直接 <code>selectById(id)</code> 后操作，不校验当前用户是否有权访问该数据。</p>
+      <p><strong>前端：</strong>路由守卫中 <code>meta.permission</code> 校验逻辑已实现，但所有静态路由均未配置 <code>meta.permission</code>，导致该分支永不触发。已登录用户可通过 URL 直接访问无权页面。</p>
+      <p><strong>后果：</strong>用户 A（data_scope=本人）在列表中看不到用户 B 的数据，但若知道 ID，可通过 <code>GET/PUT/DELETE /{id}</code> 直接访问/修改/删除他人数据（IDOR 漏洞）。</p>
+      <div class="fix"><strong>修复建议：</strong>①后端所有 get/update/delete 方法增加数据权限校验（封装 <code>checkOwnership(entity)</code>）；②前端为每条路由补充 <code>meta.permission</code> 或改为后端菜单动态生成路由。</div>
+    </div>
+  </div>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span>
+      <span class="badge cross">跨层</span>
+      <span class="issue-title">Logout 接口失效——Token 无法主动撤销</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>影响层：</strong>后端拦截器配置 + 前端登出流程</p>
+      <p><code>WebMvcConfig.java</code> L26 将 <code>/auth/logout</code> 排除在 <code>JwtInterceptor</code> 之外，导致登出时 <code>SecurityContext</code> 未设置（ThreadLocal 为 null）。<code>AuthController.logout()</code> 中 <code>SecurityContext.getUserId()</code> 返回 null，<code>authService.logout(userId)</code> 永远不执行，Redis 中的 token 不会被删除。</p>
+      <p><strong>后果：</strong>被盗 token 在 24 小时过期前无法通过登出撤销，安全风险高。前端虽然清理了本地 token，但旧 token 仍可被攻击者使用。</p>
+      <div class="fix"><strong>修复建议：</strong>将 <code>/auth/logout</code> 从 JwtInterceptor 排除路径中移除，使其需要经过 JWT 校验；或改为前端在 logout 请求中携带 token，后端手动解析后删除 Redis 缓存。</div>
+    </div>
+  </div>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span>
+      <span class="badge tech">技术</span>
+      <span class="issue-title">审批流金额阈值路由逻辑反转</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>ApprovalService.java</code> L84-96（startApproval）vs L185-194（approve）</p>
+      <p><code>startApproval</code> 选择首节点条件：<code>threshold == null || threshold >= businessAmount</code></p>
+      <p><code>approve</code> 选择下一节点条件：<code>threshold == null || businessAmount >= threshold</code></p>
+      <p>按 schema 注释"合同金额 ≥ 阈值才走该节点"，正确条件应为 <code>businessAmount >= threshold</code>（即 approve 的逻辑）。<strong>startApproval 的条件是反转的。</strong></p>
+      <p><strong>后果示例：</strong>节点 Node1(阈值5000)、Node2(阈值50000)，合同金额 20000：正确应走 Node1，实际代码从 Node2 开始审批——大金额合同反而跳过低阈值审批节点。</p>
+      <div class="fix"><strong>修复建议：</strong>将 <code>startApproval</code> L88 条件改为 <code>node.getAmountThreshold().compareTo(businessAmount) &lt;= 0</code>（即 threshold ≤ amount）；兜底逻辑取 <code>nodes.get(0)</code> 而非 <code>nodes.get(nodes.size()-1)</code>。</div>
+    </div>
+  </div>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span>
+      <span class="badge biz">业务</span>
+      <span class="issue-title">验收通过自动建结算单触发 NOT NULL 违约（必现运行时异常）</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>AcceptanceService.java</code> L125-157（createPointSettlementDraft）</p>
+      <p>验收通过时自动创建点位结算单草稿，但插入 <code>PointSettlement</code> 时：</p>
+      <p>①<strong>未设置 <code>code</code></strong>，而 <code>point_settlement.code</code> 为 NOT NULL，插入必失败；</p>
+      <p>②<code>point_id</code> 仅在 <code>businessType=MAINTENANCE_POINT</code> 时设置，而 <code>point_id</code> 为 NOT NULL，NEW_BUILD 类型验收通过会违约；</p>
+      <p>③<code>amount</code> 置为 <code>BigDecimal.ZERO</code> 注释"后续回填"，但<strong>无任何回填逻辑</strong>，违反规格"结算金额=报价金额"；</p>
+      <p>④未按 <code>businessType</code> 守卫，对 NEW_BUILD 验收也触发点位结算（点位结算仅适用于维护型项目）。</p>
+      <p><strong>后果：</strong>验收通过操作整体抛 SQLException 失败，核心业务流程不可用。</p>
+      <div class="fix"><strong>修复建议：</strong>仅对 MAINTENANCE_POINT 触发；生成 code（如 <code>PS + yyyyMMdd + 序号</code>）；amount 直接从 Quote 取；校验 quoteId/pointId 非空。</div>
+    </div>
+  </div>
+</div>
+
+<!-- Backend Business -->
+<div id="backend-biz" class="section">
+  <h2><span class="icon">⚙️</span> 后端业务模块审查</h2>
+  <div class="section-desc">涵盖合同、报价、项目、设备、进度、验收、维保任务/记录/点位/合同、季度结算、点位结算、审批流、收付款、合同变更、客户/供应商等 20+ 服务。</div>
+
+  <h3 style="margin: 20px 0 12px; font-size: 17px;">业务合理性问题</h3>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span><span class="badge biz">业务</span>
+      <span class="issue-title">季度结算单生成时机与规格不符</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>QuarterlySettlementService.java</code> L127-185 / <code>QuarterlySettlementJob.java</code> L27-42</p>
+      <p>规格要求"每期结束日的次日 00:00 自动生成草稿单"，但 <code>generateForContract</code> 一次性遍历 <code>periodCount</code> 生成所有期次的草稿单。每日 00:00 跑的 Job 在合同创建后首次执行即把未来所有期次全部预生成。且单据内容缺"本期巡检次数、本期维保工单汇总、关联维保记录"字段。</p>
+      <div class="fix"><strong>修复建议：</strong>Job 改为只生成"昨日为某期结束日"的那一期；补充巡检次数/工单汇总/维保记录字段与聚合逻辑。</div>
+    </div>
+  </div>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span><span class="badge biz">业务</span>
+      <span class="issue-title">维保主合同金额变更未联动季度结算</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>ContractChangeService.java</code> L88-125 / <code>MaintenanceContractService.java</code></p>
+      <p>规则5要求"合同金额变更经审批后从下一期生效，当期不补差，结算单显示适用金额版本"。但 <code>MaintenanceContract</code> 无变更机制；已生成的未来期次结算单金额不更新；<code>amountVersion</code> 仅在手动 adjust 时自增，合同变更审批通过时未递增。</p>
+      <div class="fix"><strong>修复建议：</strong>为 MaintenanceContract 增加变更流程；审批通过后从下一期起按新金额重算并递增 amountVersion。</div>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">维护点位状态机完全未实现</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>MaintenancePointService.java</code> / <code>AcceptanceService.java</code> / <code>PointSettlementService.java</code></p>
+      <p>定义了完整状态机 <code>WAITING_QUOTE→QUOTED→CONSTRUCTING→WAITING_ACCEPTANCE→ACCEPTED→SETTLED</code>，但代码中无任何状态流转方法。验收通过不回写 ACCEPTED，结算完成不回写 SETTLED，报价确认不回写 QUOTED。业务闭环断裂。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">"施工完成自动生成验收单草稿"未实现</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>AcceptanceService.java</code></p>
+      <p>验收规则2要求"施工状态置为已完成时系统自动生成验收单草稿"。当前 <code>AcceptanceService.create</code> 为手动创建，无任何状态变更触发的自动建单逻辑。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">手动调整结算单未走财务审批</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>QuarterlySettlementService.java</code> L94-112（adjust）</p>
+      <p>规则6要求提前终止的手动调整"需财务审批 + 填写调整原因 + 留痕审计"。当前 adjust 仅校验 remark 非空与金额>0，直接更新，无审批环节、无审计日志。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">报价"同一时间只有一个生效报价"未强制</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>QuoteService.java</code></p>
+      <p>R4 要求同一点位同时只有一个生效报价。QuoteService 无"激活当前版本并作废其他版本"的互斥逻辑，可同时存在多个 CONFIRMED 报价。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">合同收付款逾期标记遗漏 PARTIAL 状态</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>ContractPaymentService.java</code> L136-143（markOverdue）</p>
+      <p><code>markOverdue</code> 仅将 <code>status=PENDING</code> 且过期的记录置为 OVERDUE，遗漏 PARTIAL（部分收/付）状态。部分付款后逾期的记录不会被标记，看板逾期统计失真。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge biz">业务</span>
+      <span class="issue-title">季度结算生成通知未含财务</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>QuarterlySettlementService.java</code> L175-184</p>
+      <p>规则3要求通知"项目经理和财务"，当前仅通知项目经理（managerId）。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge biz">业务</span>
+      <span class="issue-title">报价转合同、金额一致性校验未实现</span>
+    </div>
+    <div class="issue-body">
+      <p>需求 3.2.4"中标报价转合同基础信息""报价金额与合同金额一致性校验提示"均无对应方法。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge biz">业务</span>
+      <span class="issue-title">维保主合同无到期自动终止/提醒</span>
+    </div>
+    <div class="issue-body">
+      <p><code>MaintenanceContractService</code> 无 ACTIVE→EXPIRED 自动流转定时任务。</p>
+    </div>
+  </div>
+
+  <h3 style="margin: 24px 0 12px; font-size: 17px;">代码逻辑问题</h3>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span><span class="badge tech">技术</span>
+      <span class="issue-title">审批结果校验在 DB 更新之后</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>ApprovalService.java</code> L153-170（approve）</p>
+      <p>先用条件更新把 result 写入 approval_log（L153-160），之后才校验 result 是否为 APPROVED/REJECTED（L168-170）。校验顺序倒置，仅靠 @Transactional 回滚保护。应先校验后更新。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">合同收付款多次部分登记互相覆盖</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>ContractPaymentService.java</code> L103-131（recordActual）</p>
+      <p>用 <code>.set(ContractPayment::getActualAmount, actualAmount)</code> 覆盖写，多次部分收款时后一次覆盖前一次金额（非累加）。与 PointSettlementService.receive 的累加语义不一致。</p>
+      <div class="fix"><strong>修复建议：</strong>统一为累加语义 <code>actualAmount = actualAmount + newAmount</code>。</div>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">PointSettlement.receive 依赖 MySQL SET 子句求值顺序</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>PointSettlementService.java</code> L99-108</p>
+      <p>两条 setSql 中，status 的 CASE WHEN 依赖前一条 setSql 已更新的 received_amount 新值。此行为依赖 MySQL "SET 从左到右求值"特性，可移植性差。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">MaintenanceContract 可随意修改合同期导致结算单不一致</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>MaintenanceContractService.java</code> L61-73（update）</p>
+      <p>update 允许修改 periodMonths/effectiveDate 并重算 periodCount/endDate，但若已生成 QuarterlySettlement，既有结算单的期次信息仍为旧值，无任何校验阻断。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">point_settlement 唯一键命名与语义错误</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>DbInitRunner.java</code> L296</p>
+      <p>UNIQUE KEY <code>uk_quarterly_settlement</code> 命名混淆（表是 point_settlement 却用 quarterly_settlement 名），且 contract_id 常为 NULL（MySQL 中 NULL 不参与唯一性约束），无法防重。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">AcceptanceService.submitResult 无状态守卫</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>AcceptanceService.java</code> L90-120</p>
+      <p>已 PASS 或 ARBITRATION 的验收单可被重复提交；重复 PASS 会重复调用 createPointSettlementDraft 生成多份结算单草稿。无前置状态校验。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge tech">技术</span>
+      <span class="issue-title">MaintenanceStatService 全表加载内存分组</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>MaintenanceStatService.java</code> 多处</p>
+      <p>多处 <code>.last("LIMIT 10000")</code> 加载到内存后用 Stream 分组统计，数据量增长时性能风险，且 LIMIT 10000 会截断数据导致统计不准。应改用 SQL GROUP BY 聚合。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge tech">技术</span>
+      <span class="issue-title">巡检工单生成逻辑重复</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>MaintenanceInspectScheduler.java</code> L32-81 与 <code>MaintenanceTaskService.java</code> L196-234</p>
+      <p>两处巡检工单生成逻辑几乎完全相同，应抽取公共方法复用。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge tech">技术</span>
+      <span class="issue-title">QuarterlySettlement 状态流转含逆向回退</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>QuarterlySettlementService.java</code> L34-41</p>
+      <p>允许 REVIEWED→DRAFT、CONFIRMED→REVIEWED 等回退，与规格单向流转不符。若为纠错设计应明确注释。</p>
+    </div>
+  </div>
+</div>
+
+<!-- Backend System & Security -->
+<div id="backend-sys" class="section">
+  <h2><span class="icon">🔒</span> 后端系统与安全模块审查</h2>
+  <div class="section-desc">涵盖用户/角色/菜单/部门 RBAC、JWT 认证、权限拦截、数据权限、通知、字典、文件预览、定时任务、数据库 Schema、配置安全。</div>
+
+  <h3 style="margin: 20px 0 12px; font-size: 17px;">业务合理性问题</h3>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span><span class="badge biz">业务</span>
+      <span class="issue-title">文件预览缺少水印功能</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>PreviewController.java</code> L36-102</p>
+      <p>需求明确要求"预览水印：叠加当前用户名 + 时间戳，防止截图泄密"，但 PreviewController 直接输出文件流，无任何水印叠加逻辑。合同、报价等敏感文件可被无痕迹截图泄露。</p>
+      <div class="fix"><strong>修复建议：</strong>对 PDF 和图片预览增加水印叠加（iText/PDFBox 处理 PDF，BufferedImage 处理图片）。</div>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">附件访问权限过于严格，不支持业务协作</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>PreviewController.java</code> L48 / <code>AttachmentController.java</code> L64/121/152</p>
+      <p>附件预览/下载/删除仅校验"超管或创建人本人"，不考虑数据权限。商务专员上传的合同附件，项目经理无法预览。</p>
+      <div class="fix"><strong>修复建议：</strong>改为基于业务实体的数据权限校验。</div>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">通知定时扫描验收催办频率不符</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>NotificationScheduler.java</code> L53-59</p>
+      <p>需求要求"每周催办一次"，当前去重周期为 3 天，实际每 3 天催办一次。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">系统管理菜单权限码不完整</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>schema.sql</code> L84-89 / <code>SysUserController.java</code></p>
+      <p>schema 种子数据仅为系统管理模块创建了 list 权限码，未创建 add/edit/delete 权限码。非超管用户即使被分配了"用户管理"菜单，也无法执行增删改操作。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">缺少操作日志审计功能</span>
+    </div>
+    <div class="issue-body">
+      <p>需求要求"操作日志审计"，但系统中无操作日志实体、Service、AOP 切面或拦截器。仅有 PreviewLog 和 ApprovalLog。无法追溯关键业务数据的修改/删除操作。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge biz">业务</span>
+      <span class="issue-title">Office 文档预览提示不明确</span>
+    </div>
+    <div class="issue-body">
+      <p>非白名单类型被强制以 octet-stream 下载，前端无法区分"不支持预览，请下载"与"正常下载"。需求要求 Office 文档标注"请下载"。</p>
+    </div>
+  </div>
+
+  <h3 style="margin: 24px 0 12px; font-size: 17px;">代码逻辑与安全问题</h3>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span><span class="badge tech">技术</span>
+      <span class="issue-title">JWT 密钥硬编码为默认值</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>application.yml</code> L27</p>
+      <p><code>secret: ${EMS_JWT_SECRET:ems-secret-key-must-be-at-least-256-bits...}</code> 提供了公开的默认密钥。攻击者知道默认密钥后可伪造任意用户 token（包括超级管理员），完全绕过认证。</p>
+      <div class="fix"><strong>修复建议：</strong>移除默认值，改为 <code>secret: ${EMS_JWT_SECRET}</code>，启动时必须配置。</div>
+    </div>
+  </div>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span><span class="badge tech">技术</span>
+      <span class="issue-title">数据库密码硬编码为默认值</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>application-dev.yml</code> L5</p>
+      <p><code>password: ${DB_PASSWORD:Abc123++}</code> 提供了默认密码。未设置环境变量时使用弱密码连接数据库，且凭据可能泄露到代码仓库。</p>
+      <div class="fix"><strong>修复建议：</strong>移除默认值，改为 <code>password: ${DB_PASSWORD}</code>。</div>
+    </div>
+  </div>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span><span class="badge tech">技术</span>
+      <span class="issue-title">Redis 无密码认证 + 数据库 useSSL=false</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>application-dev.yml</code> L8-17 / L3</p>
+      <p>Redis 连接未设置 password，若端口暴露可直接连接获取有效 token。MySQL 使用 <code>useSSL=false</code> + <code>allowPublicKeyRetrieval=true</code>，存在中间人攻击风险。</p>
+    </div>
+  </div>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span><span class="badge tech">技术</span>
+      <span class="issue-title">无登录防暴力破解机制</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>AuthService.java</code> L32-48</p>
+      <p>登录接口无验证码、无失败次数限制、无账号锁定机制。攻击者可对 /auth/login 发起无限次暴力破解。</p>
+      <div class="fix"><strong>修复建议：</strong>增加 Redis 计数器实现登录失败次数限制（5 次失败锁定 30 分钟）。</div>
+    </div>
+  </div>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span><span class="badge tech">技术</span>
+      <span class="issue-title">sys_role.data_scope 默认值为 1（全部数据）</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>schema.sql</code> L39</p>
+      <p><code>data_scope TINYINT DEFAULT 1</code>（1=全部数据）。新建角色时若未显式指定 data_scope，默认拥有全部数据访问权限，违反最小权限原则。</p>
+      <div class="fix"><strong>修复建议：</strong>DDL 改为 <code>DEFAULT 4</code>（本人）。</div>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">无 Token 刷新机制</span>
+    </div>
+    <div class="issue-body">
+      <p>JWT 有效期固定 24 小时，无 refresh token 机制。用户每 24 小时必须重新登录。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">BusinessException 未设置 HTTP 状态码</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>GlobalExceptionHandler.java</code> L19-22</p>
+      <p>所有 BusinessException（含 401/403）都返回 HTTP 200，仅在响应体 code 字段区分。监控系统无法识别异常。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">用户管理无自我保护</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>SysUserService.java</code> L60-79</p>
+      <p>update 不校验是否修改自己的状态/角色（可自我提权或自禁用）；delete 仅阻止删除超管，未阻止删除自己。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">角色管理未保护超管角色</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>SysRoleService.java</code> L53-64</p>
+      <p>update 未校验是否修改超管角色（code="admin"）。管理员可将超管角色 data_scope 改为本人，或修改 code 导致超管判断失效。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">菜单删除未检查子菜单</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>SysMenuService.java</code> L86-88</p>
+      <p>delete(id) 直接删除菜单，不检查是否有子菜单。删除父菜单后子菜单成为孤儿节点，菜单树构建异常。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">定时任务无并发执行保护</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>NotificationScheduler.java</code> / <code>QuarterlySettlementJob.java</code> / <code>MaintenanceInspectScheduler.java</code></p>
+      <p>三个 @Scheduled 定时任务均未配置并发保护。多实例部署或任务执行跨触发周期时可能重复执行。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">AttachmentService.listByBusiness 未应用数据权限</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>AttachmentService.java</code> L33-39</p>
+      <p>listByBusiness 查询某业务实体所有附件，未调用 DataScopeHelper.applyTo。用户可查看任意业务实体的附件列表，存在越权风险。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">JwtInterceptor 每次请求查库性能问题</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>JwtInterceptor.java</code> L52/L80-84</p>
+      <p>每次 HTTP 请求都执行 selectById 查询用户、selectList 查询角色、selectBatchIds 查询角色信息。高频请求下数据库压力大。</p>
+      <div class="fix"><strong>修复建议：</strong>将用户基本信息缓存到 Redis（随 token 一起设置 TTL）。</div>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">DbInitRunner 异常被静默吞没</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>DbInitRunner.java</code> 多处</p>
+      <p>多处 <code>catch (Exception ignore) {}</code> 静默吞没所有异常，可能掩盖真正的 SQL 错误。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge tech">技术</span>
+      <span class="issue-title">无密码复杂度校验</span>
+    </div>
+    <div class="issue-body">
+      <p>SysUserDTO 无 @Size/@Pattern 注解，创建用户时无最小长度、复杂度要求。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge tech">技术</span>
+      <span class="issue-title">无 XSS 防护处理</span>
+    </div>
+    <div class="issue-body">
+      <p>用户输入未做 HTML 转义/过滤直接存入数据库。前后端分离架构下风险较低，但后端无防御措施。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge tech">技术</span>
+      <span class="issue-title">SysDict/SysDictItem 无软删除和审计字段</span>
+    </div>
+    <div class="issue-body">
+      <p>字典表不继承 BaseEntity，无 deleted/create_by 等字段，删除为物理删除，与其他实体不一致。</p>
+    </div>
+  </div>
+</div>
+
+<!-- Frontend -->
+<div id="frontend" class="section">
+  <h2><span class="icon">🖥️</span> 前端模块审查</h2>
+  <div class="section-desc">涵盖 Vue3 + TypeScript + Pinia + Element Plus + Vite 全栈，包括路由、状态管理、API 层、布局组件、40+ 业务页面。</div>
+
+  <h3 style="margin: 20px 0 12px; font-size: 17px;">业务合理性问题</h3>
+
+  <div class="issue severe">
+    <div class="issue-head">
+      <span class="badge severe">严重</span><span class="badge biz">业务</span>
+      <span class="issue-title">分配菜单可能清空角色名称与编码</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>role/index.vue</code> L80-86</p>
+      <p>分配菜单时调用 <code>roleApi.update({ id, name:'', code:'', menuIds:[...] } as any)</code>，将 name/code 置空串一并发送。若后端用 MyBatis-Plus updateById 默认策略（非 null 字段均更新），空串会覆盖原角色名/编码。</p>
+      <div class="fix"><strong>修复建议：</strong>后端新增专用接口 POST /sys/role/{id}/menus 仅接收 menuIds；前端改用该接口。</div>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">报价/项目客户名为文本输入，未关联客户档案</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>quote/index.vue</code> L287-289 / <code>project/index.vue</code> L214-216</p>
+      <p>报价和项目的 customerName 为自由文本输入，未用 el-select 关联客户档案。系统已有客户档案模块但未复用，无法与客户档案联动统计。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">验收/审批/维保记录表格显示原始 ID 而非名称</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>acceptance/index.vue</code> L243 / <code>approval/index.vue</code> L158/L160 / <code>maintenance-record/index.vue</code> L221/L226</p>
+      <p>多处表格列直接展示 UUID 原始值（验收人ID、业务ID、审批人ID、记录人ID、任务ID），userOptions/taskOptions 已加载但未用于表格解析，用户体验差。审批中心"全部"页还让用户手输 UUID 查询。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">验收"实际工程量"非必填，缺少整改/仲裁流转</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>acceptance/index.vue</code></p>
+      <p>需求 R3.1 明确"必填：实际工程量"，但 rules 未校验。结论仅 PASS/FAIL，RECTIFYING/ARBITRATION 无 UI 入口，3 次整改转仲裁规则未在交互中体现。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">审批流节点未校验审批角色必填</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>approval/flow-config.vue</code> L169-174</p>
+      <p>保存节点时只检查节点名非空，approverRoleId 可为空。无审批角色的节点会导致审批流卡死无人可审。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">维保任务/点位结算/合同状态可自由编辑，缺少状态流转动作</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>maintenance-task/index.vue</code> L409-413 / <code>point-settlement/index.vue</code> L285-289 / <code>contract/index.vue</code> L343-347</p>
+      <p>多处状态在编辑表单可任意切换，未提供"派单/处理/完工""确认回款"等业务动作驱动状态流转，易产生非法跳转。两种结算（季度/点位）UX 不一致。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">点位结算下拉未按项目级联</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>point-settlement/index.vue</code> L138-143</p>
+      <p>点位/报价/验收下拉一次性加载全部（pageSize:200），未根据所选 projectId 过滤，可为 A 项目选择 B 项目的点位。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">附件 businessId 为文本输入（手填 UUID）</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>attachment/index.vue</code> L196-198</p>
+      <p>需求要求"关联实体 ID 字段使用 el-select 下拉"。此处 businessId 让用户手填 UUID，极不友好且易错。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">通知铃铛未实时刷新</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>NotificationBell.vue</code> L78-80</p>
+      <p>未读数仅在组件挂载时拉取一次，无轮询/SSE/WebSocket，用户停留在页面时新通知不会更新。</p>
+      <div class="fix"><strong>修复建议：</strong>增加定时轮询（30s setInterval，onUnmounted 清理）或 SSE 推送。</div>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">合同变更新增时上传附件 businessId 为空</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>contract-change/index.vue</code> L110-119</p>
+      <p>新增变更时 form.id 为 undefined，附件以空 businessId 上传；提交创建后未回绑新变更 ID，导致附件孤立。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">维保任务类型缺失"保养"，与维保统计不一致</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>maintenance-task/index.vue</code> L63 vs <code>maintenance-stat/index.vue</code></p>
+      <p>维保统计含 MAINTENANCE(保养) 类型，但任务类型只有巡检/故障维修，无法创建保养类任务。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge biz">业务</span>
+      <span class="issue-title">首页 dashboard/index.vue 为静态占位死代码</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>dashboard/index.vue</code> L15-32</p>
+      <p>所有指标硬编码 0，文案"业务模块开发中"。路由 /dashboard 实际指向 workbench.vue，此文件未被引用，易误导。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge biz">业务</span>
+      <span class="issue-title">PDF 预览依赖浏览器原生支持，未显式集成 PDF.js</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>FilePreview.vue</code> L115-120</p>
+      <p>用 iframe 依赖浏览器内置 PDF 查看器（Chromium 即 PDF.js，但非显式集成），无原生 PDF 支持的 WebView 中无法预览。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge biz">业务</span>
+      <span class="issue-title">结算看板缺"未收/逾期"维度</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>business/dashboard/index.vue</code> L80-105</p>
+      <p>需求要求收付款看板展示"已收/未收/逾期"。此看板仅有总额/已结算/已开票/已回款，缺未收与逾期维度。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge biz">业务</span>
+      <span class="issue-title">设备分类硬编码，未用数据字典</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>equipment/index.vue</code> L38</p>
+      <p>系统已有字典模块，设备分类却硬编码，维护需改代码。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge biz">业务</span>
+      <span class="issue-title">侧边栏不支持三级菜单</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>Sidebar.vue</code> L119-130</p>
+      <p>嵌套目录按平铺处理，仅渲染叶子菜单，三级菜单结构无法展示。</p>
+    </div>
+  </div>
+
+  <h3 style="margin: 24px 0 12px; font-size: 17px;">代码逻辑问题</h3>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">路由级权限校验形同虚设</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>router/index.ts</code> L296-305</p>
+      <p>守卫实现了 meta.permission 校验逻辑，但所有静态路由均未配置 meta.permission，导致该分支永不触发。已登录用户可通过 URL 直接访问无权页面。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">响应拦截器对二进制流无兜底</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>request.ts</code> L30-31</p>
+      <p>拦截器强制解构 {code,message,data}。对 responseType:'blob' 等二进制响应无兜底，一旦有接口通过 service 返回二进制流，会因 code 为 undefined 而误报"请求失败"。</p>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">TypeScript 类型安全薄弱，any 泛滥</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong>全局 36 个文件共 162 处 any</p>
+      <p>响应数据普遍用 any 解构，丢失类型推断与编译期校验。<code>roleApi.update(... as any)</code> 等绕过类型检查掩盖了真实错误。</p>
+      <div class="fix"><strong>修复建议：</strong>为每个 API 定义 PageResult&lt;T&gt; 返回类型，业务页用具体 interface 替换 any。</div>
+    </div>
+  </div>
+
+  <div class="issue warn">
+    <div class="issue-head">
+      <span class="badge warn">警告</span><span class="badge tech">技术</span>
+      <span class="issue-title">字典 API 前缀与系统模块不一致</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>文件：</strong><code>api/system.ts</code> L109-118</p>
+      <p>除字典外所有系统模块统一用 /sys 前缀，唯字典用 /system/dict。若后端 @RequestMapping 为 /sys/dict，则字典所有接口 404。</p>
+    </div>
+  </div>
+
+  <div class="issue info">
+    <div class="issue-head">
+      <span class="badge info">建议</span><span class="badge tech">技术</span>
+      <span class="issue-title">403 未单独处理 / 登录页前缀图标可能不渲染 / 大量 pageSize:999 一次性拉取</span>
+    </div>
+    <div class="issue-body">
+      <p>request.ts 仅处理 401，403 落入通用错误提示未跳转 403 页；登录页 prefix-icon 传字符串但图标未全局注册可能不显示；多处下拉一次性拉取大页（999/1000），数据量增长后性能下降。</p>
+    </div>
+  </div>
+</div>
+
+<!-- Passed -->
+<div id="passed" class="section">
+  <h2><span class="icon">✅</span> 审查通过项</h2>
+  <div class="section-desc">以下模块/文件审查未发现严重问题，设计合理、实现规范。</div>
+
+  <h3 style="margin: 16px 0 8px; font-size: 16px;">后端通过项</h3>
+  <div class="pass-grid">
+    <div class="pass-item">Mapper 层（20 个）：全部 BaseMapper 扩展，无自定义 SQL，无注入风险</div>
+    <div class="pass-item">BaseEntity：@TableLogic 逻辑删除 + 雪花 ID + 审计字段填充</div>
+    <div class="pass-item">PageResult：使用 list 字段（符合规范）</div>
+    <div class="pass-item">JacksonConfig：Long→String 序列化正确</div>
+    <div class="pass-item">MetaObjectHandler：自动填充 createBy/createTime/updateTime</div>
+    <div class="pass-item">DataScope 体系：注解 + 切面 + Helper 完整，递归查询子部门参数化</div>
+    <div class="pass-item">GlobalExceptionHandler：异常处理覆盖全面，通用异常不泄露堆栈</div>
+    <div class="pass-item">JwtUtil：HS256 签名，生成/解析逻辑正确</div>
+    <div class="pass-item">SecurityContext：ThreadLocal 模式正确，afterCompletion 中 clear 防泄漏</div>
+    <div class="pass-item">ApprovalService：审批人越权校验完善，SQL 条件更新防竞态，事务提交后发通知</div>
+    <div class="pass-item">QuarterlySettlementService：状态机校验严格，乐观锁防并发，幂等生成</div>
+    <div class="pass-item">MaintenanceInspectScheduler：巡检工单幂等生成，每日 02:00 执行</div>
+    <div class="pass-item">PreviewController：路径遍历防护（normalize + startsWith）正确</div>
+    <div class="pass-item">Customer/Supplier/Equipment/Project/Progress Service：基础 CRUD 与分页规范</div>
+    <div class="pass-item">所有 DTO：@Valid + @NotBlank/@NotNull 校验注解使用正确</div>
+  </div>
+
+  <h3 style="margin: 20px 0 8px; font-size: 16px;">前端通过项</h3>
+  <div class="pass-grid">
+    <div class="pass-item">vite.config.ts：/api 代理、AutoImport、样式覆盖顺序正确</div>
+    <div class="pass-item">stores/user.ts：token/userId(字符串)/menus 管理规范，登出清理完整</div>
+    <div class="pass-item">layout/index.vue：移动端 drawer + resize 监听 onUnmounted 清理，无泄漏</div>
+    <div class="pass-item">FilePreview.vue：水印、onBeforeUnmount 释放 objectUrl，无 v-html（XSS 安全）</div>
+    <div class="pass-item">quarterly-settlement/index.vue：状态流转用独立对话框，adjust/generate/updateStatus 分离</div>
+    <div class="pass-item">maintenance-stat/index.vue：故障类型分布/响应时长/设备故障频次 TOP10/工作量/健康度评分齐全</div>
+    <div class="pass-item">contract-payment/index.vue：收付款看板含已收/未收/逾期，recordActual 独立流程</div>
+    <div class="pass-item">progress/dashboard.vue：待开始/进行中/延期/已完工分类展示，含响应式</div>
+    <div class="pass-item">progress/gantt.vue：计划/实际双条甘特图，实现合理</div>
+    <div class="pass-item">quote/version-compare.vue：版本对比与差异摘要实现完整</div>
+    <div class="pass-item">report/index.vue：导出调用后端 EasyExcel 接口，triggerDownload 释放 URL</div>
+    <div class="pass-item">customer/supplier/index.vue：校验完整（手机/邮箱格式），CRUD 规范</div>
+  </div>
+</div>
+
+<!-- Roadmap -->
+<div id="roadmap" class="section">
+  <h2><span class="icon">🗺️</span> 修复优先级路线图</h2>
+  <div class="section-desc">按"影响面 × 修复难度"分级，建议按以下顺序逐批修复。</div>
+
+  <h3 style="margin: 16px 0 10px; font-size: 16px; color: var(--severe);">P0 — 立即修复（阻断核心业务 / 严重安全漏洞）</h3>
+  <ul class="priority-list">
+    <li class="priority-item p1"><div class="p-badge">1</div><div class="p-content"><strong>审批流金额阈值路由反转</strong><br><span>ApprovalService.startApproval 条件反转，所有金额分级审批走错节点。改一个比较运算符即可。</span></div></li>
+    <li class="priority-item p1"><div class="p-badge">2</div><div class="p-content"><strong>验收通过自动建结算单 NOT NULL 违约</strong><br><span>验收通过操作必抛 SQLException。补 code 生成、amount 取报价、按 businessType 守卫。</span></div></li>
+    <li class="priority-item p1"><div class="p-badge">3</div><div class="p-content"><strong>Logout 接口失效</strong><br><span>Token 无法主动撤销。将 /auth/logout 移出 JwtInterceptor 排除路径。</span></div></li>
+    <li class="priority-item p1"><div class="p-badge">4</div><div class="p-content"><strong>JWT 密钥与数据库密码硬编码默认值</strong><br><span>移除默认值，强制环境变量配置。</span></div></li>
+    <li class="priority-item p1"><div class="p-badge">5</div><div class="p-content"><strong>数据权限范围定义统一</strong><br><span>前端 dataScopeMap 的 3/4 互换修正；更新 project_memory.md。</span></div></li>
+    <li class="priority-item p1"><div class="p-badge">6</div><div class="p-content"><strong>分配菜单可能清空角色名</strong><br><span>后端新增专用接口，前端改用该接口。</span></div></li>
+  </ul>
+
+  <h3 style="margin: 20px 0 10px; font-size: 16px; color: var(--warn);">P1 — 本周修复（安全风险 / 业务流程断裂）</h3>
+  <ul class="priority-list">
+    <li class="priority-item p2"><div class="p-badge">7</div><div class="p-content"><strong>水平越权漏洞（所有业务模块 get/update/delete）</strong><br><span>封装 checkOwnership 方法，所有按 ID 操作增加数据权限校验。</span></div></li>
+    <li class="priority-item p2"><div class="p-badge">8</div><div class="p-content"><strong>无登录防暴力破解</strong><br><span>Redis 计数器实现失败次数限制 + 账号锁定。</span></div></li>
+    <li class="priority-item p2"><div class="p-badge">9</div><div class="p-content"><strong>文件预览缺少水印</strong><br><span>PDF/图片预览叠加用户名+时间戳水印。</span></div></li>
+    <li class="priority-item p2"><div class="p-badge">10</div><div class="p-content"><strong>路由级权限校验 + 菜单权限码补全</strong><br><span>前端路由补 meta.permission；后端补系统模块 add/edit/delete 权限码。</span></div></li>
+    <li class="priority-item p2"><div class="p-badge">11</div><div class="p-content"><strong>收付款多次部分登记覆盖写</strong><br><span>改为累加语义。</span></div></li>
+    <li class="priority-item p2"><div class="p-badge">12</div><div class="p-content"><strong>前端关联实体下拉化（客户/附件 businessId/点位级联）</strong><br><span>报价/项目客户名改 el-select；附件 businessId 按业务类型联动下拉；点位按项目级联。</span></div></li>
+    <li class="priority-item p2"><div class="p-badge">13</div><div class="p-content"><strong>通知铃铛实时刷新 + 验收必填/流转 + 审批角色必填</strong><br><span>通知增加轮询；验收实际工程量必填+整改仲裁流转；审批节点校验审批角色。</span></div></li>
+  </ul>
+
+  <h3 style="margin: 20px 0 10px; font-size: 16px; color: var(--info);">P2 — 迭代优化（业务完善 / 代码质量）</h3>
+  <ul class="priority-list">
+    <li class="priority-item p3"><div class="p-badge">14</div><div class="p-content"><strong>业务流程闭环</strong><br><span>点位状态机联动；施工完成自动建验收草稿；手动调整走财务审批；维保合同到期自动终止；报价互斥生效。</span></div></li>
+    <li class="priority-item p3"><div class="p-badge">15</div><div class="p-content"><strong>季度结算生成时机修正</strong><br><span>Job 改为只生成已结束期次；补充巡检次数/工单汇总字段。</span></div></li>
+    <li class="priority-item p3"><div class="p-badge">16</div><div class="p-content"><strong>安全加固</strong><br><span>Redis 密码；useSSL=true；用户/角色自我保护；菜单级联删除检查；定时任务并发保护；Token 刷新机制。</span></div></li>
+    <li class="priority-item p3"><div class="p-badge">17</div><div class="p-content"><strong>前端代码质量</strong><br><span>消除 any 泛滥；拦截器二进制兜底；403 单独处理；状态字段从编辑表单移除改业务动作驱动；设备分类用字典。</span></div></li>
+    <li class="priority-item p3"><div class="p-badge">18</div><div class="p-content"><strong>性能优化</strong><br><span>MaintenanceStatService 改 SQL GROUP BY；JwtInterceptor 缓存用户信息；下拉改远程搜索。</span></div></li>
+    <li class="priority-item p3"><div class="p-badge">19</div><div class="p-content"><strong>操作日志审计</strong><br><span>增加 AOP 切面拦截增删改操作，记录审计日志。</span></div></li>
+  </ul>
+</div>
+
+</div>
+</body>
+</html>

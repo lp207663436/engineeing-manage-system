@@ -21,13 +21,15 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // /auth/logout 不再排除:logout 请求需经过 JWT 校验,
+        // 这样 SecurityContext 才能获取到 userId 用于清理 Redis token。
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/auth/login", "/auth/logout", "/error")
+                .excludePathPatterns("/auth/login", "/error")
                 .order(1);
         registry.addInterceptor(permissionInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/auth/login", "/auth/logout", "/error")
+                .excludePathPatterns("/auth/login", "/error")
                 .order(2);
     }
 
@@ -36,7 +38,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addMapping("/**")
                 .allowedOrigins(allowedOrigins.split(","))
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
+                // 收紧允许的请求头,避免使用 "*" 过于宽松
+                .allowedHeaders("Authorization", "Content-Type", "Accept")
                 .allowCredentials(true)
                 .maxAge(3600);
     }
