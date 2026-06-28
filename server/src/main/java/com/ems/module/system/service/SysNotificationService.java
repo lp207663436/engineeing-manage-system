@@ -11,6 +11,7 @@ import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,6 +26,7 @@ public class SysNotificationService {
     /**
      * 发送通知(完整版)
      */
+    @Transactional(rollbackFor = Exception.class)
     public void send(Long userId, String title, String content, String type, String businessType, Long businessId) {
         if (userId == null) {
             return;
@@ -107,7 +109,7 @@ public class SysNotificationService {
         }
         // 越权校验:仅通知归属人或超管可操作
         Long currentUserId = SecurityContext.getUserId();
-        if (currentUserId == null || (!currentUserId.equals(n.getUserId()) && currentUserId != 1L)) {
+        if (currentUserId == null || (!currentUserId.equals(n.getUserId()) && !SecurityContext.isAdmin())) {
             throw new BusinessException(403, "无权操作他人通知");
         }
         n.setIsRead(1);
@@ -136,7 +138,7 @@ public class SysNotificationService {
         }
         // 越权校验:仅通知归属人或超管可操作
         Long currentUserId = SecurityContext.getUserId();
-        if (currentUserId == null || (!currentUserId.equals(n.getUserId()) && currentUserId != 1L)) {
+        if (currentUserId == null || (!currentUserId.equals(n.getUserId()) && !SecurityContext.isAdmin())) {
             throw new BusinessException(403, "无权操作他人通知");
         }
         sysNotificationMapper.deleteById(id);

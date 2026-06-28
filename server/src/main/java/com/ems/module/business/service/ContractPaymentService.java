@@ -65,7 +65,7 @@ public class ContractPaymentService {
             p.setActualDate(LocalDate.parse(dto.getActualDate()));
         }
         if (!StringUtils.hasText(p.getCode())) {
-            p.setCode("CP-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+            p.setCode("CP-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + "-" + System.nanoTime() % 10000);
         }
         if (!StringUtils.hasText(p.getStatus())) {
             p.setStatus("PENDING");

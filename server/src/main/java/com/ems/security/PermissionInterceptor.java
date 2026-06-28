@@ -28,7 +28,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
         Long userId = SecurityContext.getUserId();
         if (userId == null) throw new BusinessException(401, "未登录");
-        if (userId == 1L) return true; // 超管放行
+        if (SecurityContext.isAdmin()) return true; // 超管放行
 
         Set<String> permissions = menuService.getPermissionsByUserId(userId);
         if (!permissions.contains(annotation.value()) && !permissions.contains("*")) {

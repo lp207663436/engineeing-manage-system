@@ -4,15 +4,13 @@ import com.ems.common.PageResult;
 import com.ems.common.Result;
 import com.ems.common.datascope.DataScope;
 import com.ems.module.business.dto.PointSettlementDTO;
+import com.ems.module.business.dto.ReceiveDTO;
 import com.ems.module.business.entity.PointSettlement;
 import com.ems.module.business.service.PointSettlementService;
 import com.ems.security.annotation.RequirePermission;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.math.BigDecimal;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/business/point-settlement")
@@ -54,11 +52,11 @@ public class PointSettlementController {
 
     @PutMapping("/{id}/receive")
     @RequirePermission("business:pointSettlement:update")
-    public Result<Void> receive(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public Result<Void> receive(@PathVariable Long id, @Valid @RequestBody ReceiveDTO dto) {
         pointSettlementService.receive(id,
-            new BigDecimal(body.get("receivedAmount").toString()),
-            (String) body.get("receivedDate"),
-            (String) body.get("invoiceNo"));
+            dto.getReceivedAmount(),
+            dto.getReceivedDate(),
+            dto.getInvoiceNo());
         return Result.success();
     }
 

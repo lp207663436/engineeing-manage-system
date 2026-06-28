@@ -7,6 +7,7 @@ import com.ems.module.system.entity.SysUserRole;
 import com.ems.module.system.mapper.SysMenuMapper;
 import com.ems.module.system.mapper.SysRoleMenuMapper;
 import com.ems.module.system.mapper.SysUserRoleMapper;
+import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -61,7 +62,7 @@ public class SysMenuService {
 
     /** 任务12:用户菜单树(超管返回全部) */
     public List<SysMenu> getUserMenus(Long userId) {
-        if (userId == 1L) return tree();
+        if (SecurityContext.SUPER_ADMIN_ID.equals(userId)) return tree();
         List<SysUserRole> userRoles = userRoleMapper.selectList(
                 new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
         if (userRoles.isEmpty()) return List.of();

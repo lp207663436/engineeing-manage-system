@@ -14,6 +14,7 @@ import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -55,10 +56,15 @@ public class ContractChangeService {
 
     public void update(ContractChangeDTO dto) {
         ContractChange existing = get(dto.getId());
-        if ("APPROVED".equals(existing.getStatus()) || "REJECTED".equals(existing.getStatus()))
-            throw new BusinessException("已审核记录不可修改");
+        if ("APPROVED".equals(existing.getStatus()))
+            throw new BusinessException("已审核通过的记录不可修改");
+        // REJECTED 状态允许修改并重新提交(状态回到 PENDING)
         BeanUtils.copyProperties(dto, existing);
-        contractChangeMapper.updateById(existing);
+        if ("REJECTED".equals(existing.getStatus())) {
+            existing.setStatus("PENDING");
+        }
+        int rows = contractChangeMapper.updateById(existing);
+        if (rows == 0) throw new BusinessException("更新失败,记录可能已被修改");
     }
 
     public void delete(Long id) {
@@ -73,6 +79,7 @@ public class ContractChangeService {
      * @param status APPROVED/REJECTED
      * @param remark 审核备注
      */
+    @Transactional(rollbackFor = Exception.class)
     public void audit(Long id, String status, String remark) {
         if (!"APPROVED".equals(status) && !"REJECTED".equals(status)) {
             throw new BusinessException("审核状态只能为 APPROVED 或 REJECTED");
@@ -89,6 +96,9 @@ public class ContractChangeService {
 
         // 审核通过且金额变更时,回写合同主表金额
         if ("APPROVED".equals(status) && "AMOUNT".equals(existing.getChangeField()) && existing.getNewAmount() != null) {
+            if (existing.getNewAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                throw new BusinessException("变更金额必须大于0");
+            }
             Contract contract = contractMapper.selectById(existing.getContractId());
             if (contract != null) {
                 contract.setAmount(existing.getNewAmount());

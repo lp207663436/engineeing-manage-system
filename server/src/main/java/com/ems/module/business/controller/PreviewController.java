@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -44,7 +45,7 @@ public class PreviewController {
 
         // 业务权限校验:超管或附件创建人本人可访问(最低限度校验,完整数据权限由列表接口 @DataScope 保证)
         Long currentUserId = SecurityContext.getUserId();
-        if (currentUserId == null || (currentUserId != 1L && !currentUserId.equals(attachment.getCreateBy()))) {
+        if (currentUserId == null || (!SecurityContext.isAdmin() && !currentUserId.equals(attachment.getCreateBy()))) {
             throw new BusinessException(403, "无权访问该附件");
         }
 
@@ -77,12 +78,13 @@ public class PreviewController {
         Set<String> safeTypes = Set.of("image/jpeg", "image/png", "image/gif", "image/webp",
                 "application/pdf", "text/plain", "video/mp4");
         String contentType = attachment.getFileType();
+        String encodedName = URLEncoder.encode(attachment.getName(), "UTF-8").replace("+", "%20");
         if (!safeTypes.contains(contentType)) {
             response.setContentType("application/octet-stream");
-            response.setHeader("Content-Disposition", "attachment; filename=\"" + attachment.getName() + "\"");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + encodedName + "\"");
         } else {
             response.setContentType(contentType);
-            response.setHeader("Content-Disposition", "inline");
+            response.setHeader("Content-Disposition", "inline; filename=\"" + encodedName + "\"");
         }
         response.setHeader("X-Content-Type-Options", "nosniff");
         response.setContentLengthLong(Files.size(filePath));

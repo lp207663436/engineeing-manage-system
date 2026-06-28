@@ -24,7 +24,7 @@ public final class DataScopeHelper {
         CurrentUser user = SecurityContext.get();
         if (user == null) return;
         if (user.getUserId() == null) return;
-        if (user.getUserId() == 1L) return; // 超管看全部
+        if (SecurityContext.SUPER_ADMIN_ID.equals(user.getUserId())) return; // 超管看全部
 
         Integer scope = user.getDataScope();
         if (scope == null || scope == 1) return; // 全部数据

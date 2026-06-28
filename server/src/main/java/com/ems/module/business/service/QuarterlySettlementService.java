@@ -1,6 +1,7 @@
 package com.ems.module.business.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
 import com.ems.common.datascope.DataScopeHelper;
@@ -95,10 +96,19 @@ public class QuarterlySettlementService {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) throw new BusinessException("调整金额必须大于0");
         if (!StringUtils.hasText(remark)) throw new BusinessException("调整金额必须填写备注说明");
         QuarterlySettlement existing = get(id);
-        existing.setAmount(amount);
-        existing.setAmountVersion(existing.getAmountVersion() == null ? 1 : existing.getAmountVersion() + 1);
-        existing.setRemark(remark);
-        quarterlySettlementMapper.updateById(existing);
+        if (!"DRAFT".equals(existing.getStatus()) && !"REVIEWED".equals(existing.getStatus())) {
+            throw new BusinessException("仅草稿或已审核状态可调整金额");
+        }
+        // 乐观锁:amountVersion 参与更新条件
+        Integer oldVersion = existing.getAmountVersion() == null ? 0 : existing.getAmountVersion();
+        int rows = quarterlySettlementMapper.update(null,
+                new LambdaUpdateWrapper<QuarterlySettlement>()
+                        .eq(QuarterlySettlement::getId, id)
+                        .eq(QuarterlySettlement::getAmountVersion, oldVersion)
+                        .set(QuarterlySettlement::getAmount, amount)
+                        .set(QuarterlySettlement::getAmountVersion, oldVersion + 1)
+                        .set(QuarterlySettlement::getRemark, remark));
+        if (rows == 0) throw new BusinessException("调整失败,记录可能已被其他操作修改,请刷新后重试");
     }
 
     public void delete(Long id) {

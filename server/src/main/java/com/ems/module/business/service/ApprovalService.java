@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -46,6 +48,10 @@ public class ApprovalService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void startApproval(String businessType, Long businessId) {
+        // businessType 白名单校验,防止任意类型注入
+        if (!"CONTRACT_APPROVAL".equals(businessType) && !"QUOTE_APPROVAL".equals(businessType)) {
+            throw new BusinessException("不支持的审批业务类型: " + businessType);
+        }
         // 重复发起审批校验:根据业务实体 approvalStatus 判断
         String currentStatus = getBusinessApprovalStatus(businessType, businessId);
         if ("PENDING".equals(currentStatus)) {
@@ -82,8 +88,16 @@ public class ApprovalService {
         log.setCreateBy(SecurityContext.getUserId());
         approvalLogMapper.insert(log);
 
-        // 通知首节点审批人
-        notifyApprovers(firstNode, businessType, businessId, "待审批:业务ID " + businessId);
+        // 通知首节点审批人(事务提交后发送,避免事务回滚后误发通知)
+        final ApprovalNode firstNodeForNotify = firstNode;
+        final String btForNotify = businessType;
+        final Long bidForNotify = businessId;
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                notifyApprovers(firstNodeForNotify, btForNotify, bidForNotify, "待审批:业务ID " + bidForNotify);
+            }
+        });
 
         updateBusinessApprovalStatus(businessType, businessId, "PENDING");
     }
@@ -103,7 +117,7 @@ public class ApprovalService {
 
         CurrentUser user = SecurityContext.get();
         if (user == null) {
-            throw new RuntimeException("未登录");
+            throw new BusinessException(401, "未登录");
         }
 
         // 审批人越权校验:当前用户角色需匹配节点 approverRoleId,超管(userId==1)可绕过
@@ -112,7 +126,7 @@ public class ApprovalService {
                         .eq(ApprovalNode::getFlowId, log.getFlowId())
                         .eq(ApprovalNode::getNodeOrder, log.getNodeOrder()));
         if (currentNode != null && currentNode.getApproverRoleId() != null
-                && (user.getUserId() == null || user.getUserId() != 1L)) {
+                && (user.getUserId() == null || !SecurityContext.isAdmin())) {
             List<SysUserRole> userRoles = sysUserRoleMapper.selectList(
                     new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, user.getUserId()));
             Set<Long> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toSet());
@@ -158,9 +172,16 @@ public class ApprovalService {
             newLog.setCreateBy(user.getUserId());
             approvalLogMapper.insert(newLog);
 
-            // 通知下一节点审批人
-            notifyApprovers(nextNode, log.getBusinessType(), log.getBusinessId(),
-                    "待审批:业务ID " + log.getBusinessId());
+            // 通知下一节点审批人(事务提交后发送,避免事务回滚后误发通知)
+            final ApprovalNode nextNodeForNotify = nextNode;
+            final String btForNotify = log.getBusinessType();
+            final Long bidForNotify = log.getBusinessId();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    notifyApprovers(nextNodeForNotify, btForNotify, bidForNotify, "待审批:业务ID " + bidForNotify);
+                }
+            });
         } else {
             updateBusinessApprovalStatus(log.getBusinessType(), log.getBusinessId(), "APPROVED");
         }

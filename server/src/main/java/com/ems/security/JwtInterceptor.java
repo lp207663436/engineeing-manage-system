@@ -65,10 +65,10 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     /**
      * 取当前用户所有角色的 dataScope,多角色取最宽(数值最小,1=全部最宽)。
-     * 超管(userId=1)直接返回 1。
+     * 超管(SUPER_ADMIN_ID)直接返回 1。
      */
     private Integer resolveDataScope(Long userId) {
-        if (userId == 1L) return 1;
+        if (SecurityContext.SUPER_ADMIN_ID.equals(userId)) return 1;
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(
                 new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
         if (userRoles.isEmpty()) return 3; // 无角色默认仅本人

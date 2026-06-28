@@ -3,15 +3,17 @@ package com.ems.module.business.controller;
 import com.ems.common.PageResult;
 import com.ems.common.Result;
 import com.ems.common.datascope.DataScope;
+import com.ems.module.business.dto.AssignDTO;
+import com.ems.module.business.dto.CompleteDTO;
 import com.ems.module.business.dto.MaintenanceTaskDTO;
+import com.ems.module.business.dto.ProcessDTO;
+import com.ems.module.business.dto.RejectTaskDTO;
 import com.ems.module.business.entity.MaintenanceTask;
 import com.ems.module.business.service.MaintenanceTaskService;
 import com.ems.security.annotation.RequirePermission;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/business/maintenance-task")
@@ -54,26 +56,36 @@ public class MaintenanceTaskController {
 
     @PutMapping("/{id}/assign")
     @RequirePermission("business:maintenanceTask:update")
-    public Result<Void> assign(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        Long handlerId = body.get("handlerId") == null ? null : Long.parseLong(body.get("handlerId").toString());
-        maintenanceTaskService.assign(id, handlerId);
+    public Result<Void> assign(@PathVariable Long id, @Valid @RequestBody AssignDTO dto) {
+        maintenanceTaskService.assign(id, dto.getHandlerId());
         return Result.success();
     }
 
     @PutMapping("/{id}/process")
     @RequirePermission("business:maintenanceTask:update")
-    public Result<Void> process(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        String handleMethod = body.get("handleMethod") == null ? null : body.get("handleMethod").toString();
-        String partsUsed = body.get("partsUsed") == null ? null : body.get("partsUsed").toString();
-        maintenanceTaskService.process(id, handleMethod, partsUsed);
+    public Result<Void> process(@PathVariable Long id, @Valid @RequestBody ProcessDTO dto) {
+        maintenanceTaskService.process(id, dto.getHandleMethod(), dto.getPartsUsed());
         return Result.success();
     }
 
     @PutMapping("/{id}/complete")
     @RequirePermission("business:maintenanceTask:update")
-    public Result<Void> complete(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        String completeDate = body.get("completeDate") == null ? null : body.get("completeDate").toString();
-        maintenanceTaskService.complete(id, completeDate);
+    public Result<Void> complete(@PathVariable Long id, @Valid @RequestBody CompleteDTO dto) {
+        maintenanceTaskService.complete(id, dto.getCompleteDate());
+        return Result.success();
+    }
+
+    @PutMapping("/{id}/accept")
+    @RequirePermission("business:maintenanceTask:update")
+    public Result<Void> accept(@PathVariable Long id) {
+        maintenanceTaskService.accept(id);
+        return Result.success();
+    }
+
+    @PutMapping("/{id}/reject")
+    @RequirePermission("business:maintenanceTask:update")
+    public Result<Void> reject(@PathVariable Long id, @Valid @RequestBody RejectTaskDTO dto) {
+        maintenanceTaskService.reject(id, dto.getReason());
         return Result.success();
     }
 

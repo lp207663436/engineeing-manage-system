@@ -1,6 +1,7 @@
 package com.ems.module.business.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
 import com.ems.common.datascope.DataScopeHelper;
@@ -88,16 +89,29 @@ public class PointSettlementService {
      * 登记实收:回款登记,状态→RECEIVED
      */
     public void receive(Long id, BigDecimal receivedAmount, String receivedDate, String invoiceNo) {
-        PointSettlement existing = get(id);
-        if ("RECEIVED".equals(existing.getStatus())) throw new BusinessException("已收款,不可重复登记");
         if (receivedAmount == null || receivedAmount.compareTo(BigDecimal.ZERO) <= 0)
             throw new BusinessException("实收金额必须大于0");
+        PointSettlement existing = get(id);
+        if ("RECEIVED".equals(existing.getStatus())) throw new BusinessException("已收款,不可重复登记");
         if (existing.getAmount() != null && receivedAmount.compareTo(existing.getAmount()) > 0)
             throw new BusinessException("实收金额不能超过应收金额");
-        existing.setReceivedAmount(receivedAmount);
-        existing.setReceivedDate(receivedDate != null ? LocalDate.parse(receivedDate) : null);
-        existing.setInvoiceNo(invoiceNo);
-        existing.setStatus("RECEIVED");
-        pointSettlementMapper.updateById(existing);
+
+        // 计算累计已收
+        BigDecimal currentReceived = existing.getReceivedAmount() == null ? BigDecimal.ZERO : existing.getReceivedAmount();
+        BigDecimal totalReceived = currentReceived.add(receivedAmount);
+        String newStatus = (existing.getAmount() != null && totalReceived.compareTo(existing.getAmount()) >= 0)
+                ? "RECEIVED" : "PARTIAL";
+
+        // 条件更新:仅当状态非 RECEIVED 时更新
+        int rows = pointSettlementMapper.update(null,
+                new LambdaUpdateWrapper<PointSettlement>()
+                        .eq(PointSettlement::getId, id)
+                        .ne(PointSettlement::getStatus, "RECEIVED")
+                        .set(PointSettlement::getReceivedAmount, totalReceived)
+                        .set(PointSettlement::getReceivedDate,
+                                receivedDate != null ? LocalDate.parse(receivedDate) : null)
+                        .set(PointSettlement::getInvoiceNo, invoiceNo)
+                        .set(PointSettlement::getStatus, newStatus));
+        if (rows == 0) throw new BusinessException("登记失败,记录可能已被其他操作更新,请刷新后重试");
     }
 }

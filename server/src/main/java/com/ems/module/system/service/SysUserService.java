@@ -10,6 +10,7 @@ import com.ems.module.system.entity.SysUser;
 import com.ems.module.system.entity.SysUserRole;
 import com.ems.module.system.mapper.SysUserMapper;
 import com.ems.module.system.mapper.SysUserRoleMapper;
+import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -70,7 +71,7 @@ public class SysUserService {
 
     @Transactional
     public void delete(Long id) {
-        if (id == 1L) throw new BusinessException("不能删除超级管理员");
+        if (SecurityContext.SUPER_ADMIN_ID.equals(id)) throw new BusinessException("不能删除超级管理员");
         userMapper.deleteById(id);
         userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
     }

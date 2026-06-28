@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -60,7 +61,7 @@ public class AttachmentController {
         }
         // 业务权限校验:超管或附件创建人本人可访问(最低限度校验,完整数据权限由列表接口 @DataScope 保证)
         Long currentUserId = SecurityContext.getUserId();
-        if (currentUserId == null || (currentUserId != 1L && !currentUserId.equals(attachment.getCreateBy()))) {
+        if (currentUserId == null || (!SecurityContext.isAdmin() && !currentUserId.equals(attachment.getCreateBy()))) {
             throw new BusinessException(403, "无权访问该附件");
         }
         return Result.success(attachment);
@@ -74,13 +75,19 @@ public class AttachmentController {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("上传文件不能为空");
         }
+        // 文件扩展名白名单校验
+        String originalName = file.getOriginalFilename();
+        if (originalName == null || !originalName.contains(".")) {
+            throw new BusinessException("文件名无效,必须包含扩展名");
+        }
+        String ext = originalName.substring(originalName.lastIndexOf(".")).toLowerCase();
+        Set<String> allowedExtensions = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp",
+                ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".md");
+        if (!allowedExtensions.contains(ext)) {
+            throw new BusinessException("不支持的文件类型: " + ext);
+        }
         // 生成存储路径:目录 uploads/yyyy/MM/uuid+原扩展名
         String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
-        String originalName = file.getOriginalFilename();
-        String ext = "";
-        if (originalName != null && originalName.contains(".")) {
-            ext = originalName.substring(originalName.lastIndexOf("."));
-        }
         String fileName = UUID.randomUUID().toString() + ext;
         // 物理目录用 System.getProperty("user.dir") + "/uploads/" + 年/月
         Path dirPath = Paths.get(System.getProperty("user.dir"), "uploads", yearMonth);
@@ -111,7 +118,7 @@ public class AttachmentController {
         }
         // 业务权限校验:超管或附件创建人本人可访问(最低限度校验,完整数据权限由列表接口 @DataScope 保证)
         Long currentUserId = SecurityContext.getUserId();
-        if (currentUserId == null || (currentUserId != 1L && !currentUserId.equals(attachment.getCreateBy()))) {
+        if (currentUserId == null || (!SecurityContext.isAdmin() && !currentUserId.equals(attachment.getCreateBy()))) {
             throw new BusinessException(403, "无权访问该附件");
         }
         String relative = attachment.getFilePath().startsWith("/")
@@ -135,7 +142,24 @@ public class AttachmentController {
 
     @DeleteMapping("/{id}")
     @RequirePermission("business:attachment:delete")
-    public Result<Void> delete(@PathVariable Long id) {
+    public Result<Void> delete(@PathVariable Long id) throws IOException {
+        Attachment attachment = attachmentService.get(id);
+        if (attachment == null) {
+            throw new BusinessException("附件不存在");
+        }
+        // 归属校验
+        Long currentUserId = SecurityContext.getUserId();
+        if (currentUserId == null || (!SecurityContext.isAdmin() && !currentUserId.equals(attachment.getCreateBy()))) {
+            throw new BusinessException(403, "无权删除他人附件");
+        }
+        // 删除物理文件
+        String relative = attachment.getFilePath().startsWith("/")
+                ? attachment.getFilePath().substring(1) : attachment.getFilePath();
+        Path base = Paths.get(System.getProperty("user.dir"), "uploads").normalize().toAbsolutePath();
+        Path filePath = Paths.get(System.getProperty("user.dir"), relative).normalize().toAbsolutePath();
+        if (filePath.startsWith(base)) {
+            Files.deleteIfExists(filePath);
+        }
         attachmentService.delete(id);
         return Result.success();
     }

@@ -1,6 +1,7 @@
 package com.ems.module.business.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ems.common.PageResult;
 import com.ems.common.datascope.DataScopeHelper;
@@ -81,9 +82,13 @@ public class MaintenanceTaskService {
         if (handlerId == null) throw new BusinessException("处理人不能为空");
         MaintenanceTask existing = get(id);
         if (!"PENDING".equals(existing.getStatus())) throw new BusinessException("仅待处理状态可派单");
-        existing.setHandlerId(handlerId);
-        existing.setStatus("ASSIGNED");
-        maintenanceTaskMapper.updateById(existing);
+        int rows = maintenanceTaskMapper.update(null,
+                new LambdaUpdateWrapper<MaintenanceTask>()
+                        .eq(MaintenanceTask::getId, id)
+                        .eq(MaintenanceTask::getStatus, "PENDING")
+                        .set(MaintenanceTask::getHandlerId, handlerId)
+                        .set(MaintenanceTask::getStatus, "ASSIGNED"));
+        if (rows == 0) throw new BusinessException("派单失败,工单状态可能已变更");
     }
 
     /**
@@ -93,21 +98,31 @@ public class MaintenanceTaskService {
         MaintenanceTask existing = get(id);
         if (!"ASSIGNED".equals(existing.getStatus())) throw new BusinessException("仅已派单状态可开始处理");
         if (existing.getHandlerId() == null) throw new BusinessException("工单尚未派单,无法处理");
-        existing.setHandleMethod(handleMethod);
-        existing.setPartsUsed(partsUsed);
-        existing.setStatus("PROCESSING");
-        maintenanceTaskMapper.updateById(existing);
+        int rows = maintenanceTaskMapper.update(null,
+                new LambdaUpdateWrapper<MaintenanceTask>()
+                        .eq(MaintenanceTask::getId, id)
+                        .eq(MaintenanceTask::getStatus, "ASSIGNED")
+                        .set(MaintenanceTask::getHandleMethod, handleMethod)
+                        .set(MaintenanceTask::getPartsUsed, partsUsed)
+                        .set(MaintenanceTask::getStatus, "PROCESSING"));
+        if (rows == 0) throw new BusinessException("处理失败,工单状态可能已变更");
     }
 
     /**
      * 完工,status→WAITING_ACCEPTANCE
      */
+    @Transactional(rollbackFor = Exception.class)
     public void complete(Long id, String completeDate) {
         MaintenanceTask existing = get(id);
         if (!"PROCESSING".equals(existing.getStatus())) throw new BusinessException("仅处理中状态可完工");
         if (StringUtils.hasText(completeDate)) existing.setCompleteDate(LocalDate.parse(completeDate));
-        existing.setStatus("WAITING_ACCEPTANCE");
-        maintenanceTaskMapper.updateById(existing);
+        int rows = maintenanceTaskMapper.update(null,
+                new LambdaUpdateWrapper<MaintenanceTask>()
+                        .eq(MaintenanceTask::getId, id)
+                        .eq(MaintenanceTask::getStatus, "PROCESSING")
+                        .set(MaintenanceTask::getCompleteDate, existing.getCompleteDate())
+                        .set(MaintenanceTask::getStatus, "WAITING_ACCEPTANCE"));
+        if (rows == 0) throw new BusinessException("完工失败,工单状态可能已变更");
 
         // 完工后自动生成维保记录
         MaintenanceRecord record = new MaintenanceRecord();
@@ -116,7 +131,7 @@ public class MaintenanceTaskService {
         record.setPointId(existing.getPointId());
         record.setTaskId(existing.getId());
         record.setEquipmentId(existing.getEquipmentId());
-        record.setRecordType(existing.getType()); // INSPECTION 或 REPAIR
+        record.setRecordType(existing.getType());
         record.setRecordDate(LocalDate.now());
         record.setRecorderId(existing.getHandlerId());
         record.setContent(existing.getTitle() + " - " + (existing.getDescription() != null ? existing.getDescription() : ""));
@@ -126,14 +141,47 @@ public class MaintenanceTaskService {
     }
 
     /**
+     * 验收通过,status→COMPLETED
+     */
+    public void accept(Long id) {
+        MaintenanceTask existing = get(id);
+        if (!"WAITING_ACCEPTANCE".equals(existing.getStatus())) throw new BusinessException("仅待验收状态可验收通过");
+        int rows = maintenanceTaskMapper.update(null,
+                new LambdaUpdateWrapper<MaintenanceTask>()
+                        .eq(MaintenanceTask::getId, id)
+                        .eq(MaintenanceTask::getStatus, "WAITING_ACCEPTANCE")
+                        .set(MaintenanceTask::getStatus, "COMPLETED"));
+        if (rows == 0) throw new BusinessException("验收失败,工单状态可能已变更");
+    }
+
+    /**
+     * 验收打回,status→PROCESSING
+     */
+    public void reject(Long id, String reason) {
+        MaintenanceTask existing = get(id);
+        if (!"WAITING_ACCEPTANCE".equals(existing.getStatus())) throw new BusinessException("仅待验收状态可打回");
+        int rows = maintenanceTaskMapper.update(null,
+                new LambdaUpdateWrapper<MaintenanceTask>()
+                        .eq(MaintenanceTask::getId, id)
+                        .eq(MaintenanceTask::getStatus, "WAITING_ACCEPTANCE")
+                        .set(MaintenanceTask::getStatus, "PROCESSING")
+                        .set(MaintenanceTask::getRemark, reason));
+        if (rows == 0) throw new BusinessException("打回失败,工单状态可能已变更");
+    }
+
+    /**
      * 关闭,status→CLOSED
      */
     public void close(Long id) {
         MaintenanceTask existing = get(id);
         if (!"WAITING_ACCEPTANCE".equals(existing.getStatus()) && !"COMPLETED".equals(existing.getStatus()))
             throw new BusinessException("仅待验收或已完成状态可关闭");
-        existing.setStatus("CLOSED");
-        maintenanceTaskMapper.updateById(existing);
+        int rows = maintenanceTaskMapper.update(null,
+                new LambdaUpdateWrapper<MaintenanceTask>()
+                        .eq(MaintenanceTask::getId, id)
+                        .in(MaintenanceTask::getStatus, "WAITING_ACCEPTANCE", "COMPLETED")
+                        .set(MaintenanceTask::getStatus, "CLOSED"));
+        if (rows == 0) throw new BusinessException("关闭失败,工单状态可能已变更");
     }
 
     public void delete(Long id) {

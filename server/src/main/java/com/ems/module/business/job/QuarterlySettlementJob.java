@@ -5,6 +5,7 @@ import com.ems.module.business.entity.MaintenanceContract;
 import com.ems.module.business.mapper.MaintenanceContractMapper;
 import com.ems.module.business.service.QuarterlySettlementService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import java.util.List;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class QuarterlySettlementJob {
 
     private final QuarterlySettlementService quarterlySettlementService;
@@ -27,15 +29,15 @@ public class QuarterlySettlementJob {
         LambdaQueryWrapper<MaintenanceContract> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MaintenanceContract::getStatus, "ACTIVE");
         List<MaintenanceContract> contracts = maintenanceContractMapper.selectList(wrapper);
-        System.out.println("[QuarterlySettlementJob] 扫描生效合同数:" + contracts.size());
+        log.info("[QuarterlySettlementJob] 扫描生效合同数:{}", contracts.size());
         for (MaintenanceContract contract : contracts) {
             try {
                 quarterlySettlementService.generateForContract(contract.getId());
             } catch (Exception e) {
                 // 单个合同失败只日志不中断后续合同处理
-                System.out.println("[QuarterlySettlementJob] 合同[" + contract.getId() + "]生成结算单失败:" + e.getMessage());
+                log.error("合同[{}]生成结算单失败", contract.getId(), e);
             }
         }
-        System.out.println("[QuarterlySettlementJob] 季度结算单生成任务执行完成");
+        log.info("[QuarterlySettlementJob] 季度结算单生成任务执行完成");
     }
 }

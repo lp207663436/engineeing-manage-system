@@ -49,7 +49,8 @@ public class MaintenanceStatService {
      * 故障类型分布:按 record_type 分组 count(maintenance_record)
      */
     private List<MaintenanceStatVO.FaultTypeStat> statFaultType() {
-        List<MaintenanceRecord> records = maintenanceRecordMapper.selectList(null);
+        List<MaintenanceRecord> records = maintenanceRecordMapper.selectList(
+                new LambdaQueryWrapper<MaintenanceRecord>().last("LIMIT 10000"));
         Map<String, Long> grouped = records.stream()
                 .filter(r -> r.getRecordType() != null)
                 .collect(Collectors.groupingBy(MaintenanceRecord::getRecordType, Collectors.counting()));
@@ -68,7 +69,9 @@ public class MaintenanceStatService {
      */
     private MaintenanceStatVO.ResponseTimeStat statResponseTime() {
         List<MaintenanceTask> tasks = maintenanceTaskMapper.selectList(
-                new LambdaQueryWrapper<MaintenanceTask>().eq(MaintenanceTask::getStatus, "COMPLETED"));
+                new LambdaQueryWrapper<MaintenanceTask>()
+                        .eq(MaintenanceTask::getStatus, "COMPLETED")
+                        .last("LIMIT 10000"));
         MaintenanceStatVO.ResponseTimeStat stat = new MaintenanceStatVO.ResponseTimeStat();
         stat.setAvgResponseHours(0.0);
         stat.setTotalCount(0);
@@ -97,7 +100,9 @@ public class MaintenanceStatService {
      */
     private List<MaintenanceStatVO.EquipmentFaultRank> statEquipmentFaultRank() {
         List<MaintenanceRecord> records = maintenanceRecordMapper.selectList(
-                new LambdaQueryWrapper<MaintenanceRecord>().eq(MaintenanceRecord::getRecordType, "REPAIR"));
+                new LambdaQueryWrapper<MaintenanceRecord>()
+                        .eq(MaintenanceRecord::getRecordType, "REPAIR")
+                        .last("LIMIT 10000"));
         Map<Long, Long> grouped = records.stream()
                 .filter(r -> r.getEquipmentId() != null)
                 .collect(Collectors.groupingBy(MaintenanceRecord::getEquipmentId, Collectors.counting()));
@@ -129,7 +134,8 @@ public class MaintenanceStatService {
      * 维保人员工作量:按 handler_id 分组 count(maintenance_task),count(status=COMPLETED)
      */
     private List<MaintenanceStatVO.WorkloadStat> statWorkload() {
-        List<MaintenanceTask> tasks = maintenanceTaskMapper.selectList(null);
+        List<MaintenanceTask> tasks = maintenanceTaskMapper.selectList(
+                new LambdaQueryWrapper<MaintenanceTask>().last("LIMIT 10000"));
         Map<Long, List<MaintenanceTask>> grouped = tasks.stream()
                 .filter(t -> t.getHandlerId() != null)
                 .collect(Collectors.groupingBy(MaintenanceTask::getHandlerId));
@@ -151,12 +157,14 @@ public class MaintenanceStatService {
      * 设备健康度评分:100 - faultCount*5(最低0),faultCount 从 maintenance_record count
      */
     private List<MaintenanceStatVO.EquipmentHealth> statEquipmentHealth() {
-        List<Equipment> equipments = equipmentMapper.selectList(null);
+        List<Equipment> equipments = equipmentMapper.selectList(
+                new LambdaQueryWrapper<Equipment>().last("LIMIT 10000"));
         if (equipments.isEmpty()) {
             return new ArrayList<>();
         }
         // 统计每个设备的故障记录数
-        List<MaintenanceRecord> records = maintenanceRecordMapper.selectList(null);
+        List<MaintenanceRecord> records = maintenanceRecordMapper.selectList(
+                new LambdaQueryWrapper<MaintenanceRecord>().last("LIMIT 10000"));
         Map<Long, Long> faultCountMap = records.stream()
                 .filter(r -> r.getEquipmentId() != null)
                 .collect(Collectors.groupingBy(MaintenanceRecord::getEquipmentId, Collectors.counting()));
