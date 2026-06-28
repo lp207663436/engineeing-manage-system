@@ -8,7 +8,7 @@ import {
 } from '@/api/business'
 import { roleApi } from '@/api/system'
 
-interface RoleOption { label: string; value: number }
+interface RoleOption { label: string; value: string }
 
 const flowLoading = ref(false)
 const flowList = ref<ApprovalFlowDTO[]>([])

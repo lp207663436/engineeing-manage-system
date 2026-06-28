@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 @Data
 public class ContractPaymentDTO {
     private Long id;
-    @NotBlank(message = "单号不能为空")
     private String code;
     @NotNull(message = "合同ID不能为空")
     private Long contractId;

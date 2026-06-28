@@ -9,9 +9,19 @@ import {
   type WorkloadStat,
   type EquipmentHealth,
 } from '@/api/business'
+import { userApi } from '@/api/system'
+
+interface Option { label: string; value: string }
 
 const loading = ref(false)
 const stat = ref<MaintenanceStatVO | null>(null)
+const userOptions = ref<Option[]>([])
+
+// 根据用户 ID 查找名称
+function userName(id?: string) {
+  if (!id) return '-'
+  return userOptions.value.find((u) => u.value === id)?.label || id
+}
 
 const faultTypeMap: Record<string, string> = {
   INSPECTION: '巡检',
@@ -80,7 +90,16 @@ async function loadData() {
   }
 }
 
+// 加载用户列表用于处理人名称展示
+async function loadUsers() {
+  try {
+    const res: any = await userApi.page({ pageNum: 1, pageSize: 999 })
+    userOptions.value = (res.list || []).map((u: any) => ({ label: u.name || u.username, value: u.id }))
+  } catch {}
+}
+
 onMounted(() => {
+  loadUsers()
   loadData()
 })
 </script>
@@ -170,7 +189,7 @@ onMounted(() => {
         <div class="card-title">维保人员工作量</div>
         <el-table :data="workloadStats" style="width: 100%" empty-text="暂无数据">
           <el-table-column label="处理人" min-width="120">
-            <template #default="{ row }">{{ row.handlerId }}</template>
+            <template #default="{ row }">{{ userName(row.handlerId) }}</template>
           </el-table-column>
           <el-table-column prop="taskCount" label="任务数" width="100" align="right" />
           <el-table-column prop="completedCount" label="已完成" width="100" align="right" />

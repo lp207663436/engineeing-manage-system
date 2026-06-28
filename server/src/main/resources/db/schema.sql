@@ -205,3 +205,11 @@ INSERT INTO sys_menu (id, parent_id, name, type, permission, path, icon, sort, s
 -- 给 admin 角色分配业务菜单权限
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT 1, id FROM sys_menu WHERE id BETWEEN 200 AND 2043;
+
+-- ========== 唯一索引 ==========
+
+-- 季度结算表:合同+季度唯一
+CREATE UNIQUE INDEX IF NOT EXISTS uk_quarterly_settlement ON quarterly_settlement(contract_id, period_no);
+
+-- 维保任务表:项目+点位+类型+计划巡检日期唯一
+CREATE UNIQUE INDEX IF NOT EXISTS uk_maintenance_task ON maintenance_task(project_id, point_id, type, plan_inspect_date);

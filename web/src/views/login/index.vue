@@ -10,8 +10,8 @@ const loading = ref(false)
 const formRef = ref<FormInstance>()
 
 const form = reactive({
-  username: 'admin',
-  password: 'admin123',
+  username: '',
+  password: '',
 })
 
 const rules = {

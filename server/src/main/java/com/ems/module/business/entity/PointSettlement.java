@@ -14,6 +14,8 @@ public class PointSettlement extends BaseEntity {
     private String code;
     private Long projectId;
     private Long pointId;
+    private Long contractId;
+    private String periodNo;
     private Long quoteId;
     private Long acceptanceId;
     /**
@@ -21,7 +23,7 @@ public class PointSettlement extends BaseEntity {
      */
     private BigDecimal amount;
     /**
-     * PENDING待结算/CONFIRMED已确认/INVOICED已开票/RECEIVED已回款/CLOSED已关闭
+     * PENDING(待结算)/CONFIRMED(已确认)/INVOICED(已开票)/PARTIAL(部分收款)/RECEIVED(已收款)/CLOSED(已关闭)
      */
     private String status;
     private String invoiceNo;

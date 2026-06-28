@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { contractChangeApi, contractApi, type ContractChangeDTO } from '@/api/business'
+import { ElMessage, ElMessageBox, type FormInstance, type UploadRequestOptions } from 'element-plus'
+import { contractChangeApi, contractApi, attachmentApi, type ContractChangeDTO } from '@/api/business'
 
 interface Option { label: string; value: string }
 type ContractChange = ContractChangeDTO
 interface Row extends ContractChangeDTO {}
 
 const contractOptions = ref<Option[]>([])
+// 已上传补充文件列表(el-upload 受控)
+const fileList = ref<any[]>([])
 const loading = ref(false)
 const tableData = ref<Row[]>([])
 const total = ref(0)
@@ -85,6 +87,7 @@ function handleAdd() {
     id: undefined, contractId: '', changeType: 'AMOUNT_CHANGE', changeDesc: '',
     supplementFileId: '', approverId: '', status: 'NONE', remark: '',
   })
+  fileList.value = []
   dialogVisible.value = true
 }
 
@@ -96,7 +99,28 @@ function handleEdit(row: Row) {
     changeDesc: row.changeDesc, supplementFileId: row.supplementFileId,
     approverId: row.approverId, status: row.status, remark: row.remark,
   })
+  // 编辑时回显已绑定的补充文件
+  fileList.value = row.supplementFileId
+    ? [{ name: `附件:${row.supplementFileId}`, url: '', id: row.supplementFileId }]
+    : []
   dialogVisible.value = true
+}
+
+// 补充文件上传:调用已有 attachmentApi.upload,成功后绑定附件 ID
+async function handleUpload(opts: UploadRequestOptions) {
+  try {
+    const res: any = await attachmentApi.upload(opts.file as File, 'CONTRACT_CHANGE', form.id || '')
+    form.supplementFileId = res?.id
+    fileList.value = [{ name: res?.name || (opts.file as File).name, url: res?.filePath || '', id: res?.id }]
+    ElMessage.success('上传成功')
+  } catch {
+    ElMessage.error('上传失败')
+  }
+}
+
+function handleRemove() {
+  form.supplementFileId = ''
+  fileList.value = []
 }
 
 async function handleSubmit() {
@@ -244,8 +268,19 @@ onMounted(() => {
         <el-form-item label="变更描述" prop="changeDesc">
           <el-input v-model="form.changeDesc" type="textarea" :rows="3" />
         </el-form-item>
-        <el-form-item label="补充文件ID">
-          <el-input v-model="form.supplementFileId" placeholder="补充协议附件ID(可选)" />
+        <el-form-item label="补充文件">
+          <el-upload
+            :file-list="fileList"
+            :http-request="handleUpload"
+            :on-remove="handleRemove"
+            :limit="1"
+            :auto-upload="true"
+          >
+            <el-button type="primary">点击上传</el-button>
+            <template #tip>
+              <div class="el-upload__tip">上传补充协议附件,上传成功后自动绑定附件ID</div>
+            </template>
+          </el-upload>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.remark" type="textarea" :rows="2" />

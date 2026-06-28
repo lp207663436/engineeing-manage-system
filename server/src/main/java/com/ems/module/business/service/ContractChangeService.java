@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Service
@@ -48,6 +49,11 @@ public class ContractChangeService {
         if (contract == null) throw new BusinessException("关联合同不存在");
         ContractChange c = new ContractChange();
         BeanUtils.copyProperties(dto, c);
+        // 金额变更时校验 newAmount > 0
+        if ("AMOUNT".equals(c.getChangeField()) && c.getNewAmount() != null
+                && c.getNewAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("变更金额必须大于0");
+        }
         if (!StringUtils.hasText(c.getStatus())) c.setStatus("PENDING");
         c.setCreateBy(SecurityContext.getUserId());
         contractChangeMapper.insert(c);
@@ -88,20 +94,31 @@ public class ContractChangeService {
         if (!"PENDING".equals(existing.getStatus())) {
             throw new BusinessException("当前记录非待审核状态,无法审核");
         }
+
+        // 校验前置:审核通过且金额变更时,在 updateById 之前校验 newAmount > 0
+        if ("APPROVED".equals(status) && "AMOUNT".equals(existing.getChangeField())
+                && existing.getNewAmount() != null
+                && existing.getNewAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("变更金额必须大于0");
+        }
+
         existing.setStatus(status);
         existing.setApproverId(SecurityContext.getUserId());
         existing.setApproveTime(LocalDateTime.now());
         if (StringUtils.hasText(remark)) existing.setRemark(remark);
         contractChangeMapper.updateById(existing);
 
-        // 审核通过且金额变更时,回写合同主表金额
-        if ("APPROVED".equals(status) && "AMOUNT".equals(existing.getChangeField()) && existing.getNewAmount() != null) {
-            if (existing.getNewAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
-                throw new BusinessException("变更金额必须大于0");
-            }
+        // 审核通过后,回写合同主表对应字段
+        if ("APPROVED".equals(status)) {
             Contract contract = contractMapper.selectById(existing.getContractId());
             if (contract != null) {
-                contract.setAmount(existing.getNewAmount());
+                if ("AMOUNT".equals(existing.getChangeField()) && existing.getNewAmount() != null) {
+                    contract.setAmount(existing.getNewAmount());
+                } else if ("START_DATE".equals(existing.getChangeField()) && existing.getNewDate() != null) {
+                    contract.setStartDate(existing.getNewDate());
+                } else if ("END_DATE".equals(existing.getChangeField()) && existing.getNewDate() != null) {
+                    contract.setEndDate(existing.getNewDate());
+                }
                 contractMapper.updateById(contract);
             }
         }

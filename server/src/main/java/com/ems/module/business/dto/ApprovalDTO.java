@@ -10,6 +10,7 @@ public class ApprovalDTO {
     private String businessType;
     @NotNull
     private Long businessId;
+    @NotBlank(message = "审批结果不能为空")
     private String result;
     private String opinion;
 }

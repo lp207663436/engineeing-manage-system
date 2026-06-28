@@ -14,6 +14,8 @@ const form = reactive<any>({
 })
 const isEdit = ref(false)
 const menuOptions = ref<any[]>([])
+// el-tree-select 节点字段映射(TreeOptionProps 类型未声明 value,用变量引用规避多余属性检查)
+const menuTreeProps = { label: 'name', value: 'id', children: 'children' }
 
 const typeMap: Record<number, { label: string; type: string }> = {
   1: { label: '目录', type: 'info' },
@@ -129,7 +131,7 @@ onMounted(loadData)
           <el-tree-select
             v-model="form.parentId"
             :data="menuOptions"
-            :props="{ label: 'name', value: 'id', children: 'children' }"
+            :props="menuTreeProps"
             check-strictly
             style="width: 100%"
           />

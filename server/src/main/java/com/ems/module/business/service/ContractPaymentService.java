@@ -131,12 +131,26 @@ public class ContractPaymentService {
     }
 
     /**
+     * 逾期标记:将 planDate < today 且 status = PENDING 的记录更新为 OVERDUE
+     */
+    public void markOverdue() {
+        LocalDate today = LocalDate.now();
+        contractPaymentMapper.update(null,
+                new LambdaUpdateWrapper<ContractPayment>()
+                        .eq(ContractPayment::getStatus, "PENDING")
+                        .lt(ContractPayment::getPlanDate, today)
+                        .set(ContractPayment::getStatus, "OVERDUE"));
+    }
+
+    /**
      * 合同收付款看板:返回 receivable/payable 的 planned、received/paid、overdue 统计。
      */
     public Map<String, Object> dashboard(Long contractId) {
         if (contractId == null) {
             throw new BusinessException("合同ID不能为空");
         }
+        // 先执行逾期标记,将过期待收付记录更新为 OVERDUE
+        markOverdue();
         List<ContractPayment> list = contractPaymentMapper.selectList(
                 Wrappers.<ContractPayment>lambdaQuery().eq(ContractPayment::getContractId, contractId));
 
@@ -151,8 +165,8 @@ public class ContractPaymentService {
         for (ContractPayment p : list) {
             BigDecimal plan = p.getPlanAmount() == null ? BigDecimal.ZERO : p.getPlanAmount();
             BigDecimal actual = p.getActualAmount() == null ? BigDecimal.ZERO : p.getActualAmount();
-            boolean overdue = "PENDING".equals(p.getStatus())
-                    && p.getPlanDate() != null && p.getPlanDate().isBefore(today);
+            boolean overdue = p.getPlanDate() != null && p.getPlanDate().isBefore(today)
+                    && ("PENDING".equals(p.getStatus()) || "OVERDUE".equals(p.getStatus()));
             if ("RECEIVABLE".equals(p.getType())) {
                 receivablePlanned = receivablePlanned.add(plan);
                 receivableReceived = receivableReceived.add(actual);

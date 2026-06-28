@@ -32,7 +32,7 @@ public class ApprovalController {
 
     @PostMapping("/{logId}/approve")
     @RequirePermission("business:approval:approve")
-    public Result<Void> approve(@PathVariable Long logId, @RequestBody ApprovalDTO dto) {
+    public Result<Void> approve(@PathVariable Long logId, @Valid @RequestBody ApprovalDTO dto) {
         approvalService.approve(logId, dto.getResult(), dto.getOpinion());
         return Result.success();
     }

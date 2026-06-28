@@ -24,6 +24,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -126,7 +127,7 @@ public class MaintenanceTaskService {
 
         // 完工后自动生成维保记录
         MaintenanceRecord record = new MaintenanceRecord();
-        record.setCode("MR-" + System.currentTimeMillis());
+        record.setCode("MR-" + UUID.randomUUID().toString().substring(0, 8));
         record.setProjectId(existing.getProjectId());
         record.setPointId(existing.getPointId());
         record.setTaskId(existing.getId());
@@ -135,6 +136,7 @@ public class MaintenanceTaskService {
         record.setRecordDate(LocalDate.now());
         record.setRecorderId(existing.getHandlerId());
         record.setContent(existing.getTitle() + " - " + (existing.getDescription() != null ? existing.getDescription() : ""));
+        record.setPartsUsed(existing.getPartsUsed());
         record.setRemark(existing.getHandleMethod());
         record.setCreateBy(SecurityContext.getUserId());
         maintenanceRecordMapper.insert(record);

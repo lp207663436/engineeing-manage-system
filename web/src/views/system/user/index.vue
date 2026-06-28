@@ -15,6 +15,9 @@ const total = ref(0)
 const query = reactive({ pageNum: 1, pageSize: 10, name: '', deptId: undefined as string | undefined })
 
 const deptTree = ref<any[]>([])
+// el-tree-select 节点字段映射(Element Plus 的 TreeOptionProps 类型未声明 value,
+// 用变量引用规避对象字面量的多余属性检查,运行时 value 字段仍然生效)
+const deptTreeProps = { label: 'name', value: 'id', children: 'children' }
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const formRef = ref<FormInstance>()
@@ -140,7 +143,7 @@ onMounted(() => {
           <el-tree-select
             v-model="query.deptId"
             :data="deptTree"
-            :props="{ label: 'name', value: 'id', children: 'children' }"
+            :props="deptTreeProps"
             check-strictly
             placeholder="请选择部门"
             clearable
@@ -208,7 +211,7 @@ onMounted(() => {
           <el-tree-select
             v-model="form.deptId"
             :data="deptTree"
-            :props="{ label: 'name', value: 'id', children: 'children' }"
+            :props="deptTreeProps"
             check-strictly
             placeholder="请选择部门"
             clearable

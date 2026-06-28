@@ -14,6 +14,8 @@ const form = reactive<any>({
 })
 const isEdit = ref(false)
 const deptOptions = ref<any[]>([])
+// el-tree-select 节点字段映射(TreeOptionProps 类型未声明 value,用变量引用规避多余属性检查)
+const deptTreeProps = { label: 'name', value: 'id', children: 'children' }
 
 async function loadData() {
   loading.value = true
@@ -107,7 +109,7 @@ onMounted(loadData)
           <el-tree-select
             v-model="form.parentId"
             :data="deptOptions"
-            :props="{ label: 'name', value: 'id', children: 'children' }"
+            :props="deptTreeProps"
             check-strictly
             style="width: 100%"
           />

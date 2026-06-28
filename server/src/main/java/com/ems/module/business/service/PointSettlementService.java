@@ -86,7 +86,7 @@ public class PointSettlementService {
     }
 
     /**
-     * 登记实收:回款登记,状态→RECEIVED
+     * 登记实收:回款登记,使用 SQL 原子自增避免并发读-写问题,状态→RECEIVED 或 PARTIAL
      */
     public void receive(Long id, BigDecimal receivedAmount, String receivedDate, String invoiceNo) {
         if (receivedAmount == null || receivedAmount.compareTo(BigDecimal.ZERO) <= 0)
@@ -96,22 +96,48 @@ public class PointSettlementService {
         if (existing.getAmount() != null && receivedAmount.compareTo(existing.getAmount()) > 0)
             throw new BusinessException("实收金额不能超过应收金额");
 
-        // 计算累计已收
-        BigDecimal currentReceived = existing.getReceivedAmount() == null ? BigDecimal.ZERO : existing.getReceivedAmount();
-        BigDecimal totalReceived = currentReceived.add(receivedAmount);
-        String newStatus = (existing.getAmount() != null && totalReceived.compareTo(existing.getAmount()) >= 0)
-                ? "RECEIVED" : "PARTIAL";
-
-        // 条件更新:仅当状态非 RECEIVED 时更新
+        // SQL 原子自增 + 状态自动判定(MYSQL 中 SET 从左到右求值,received_amount 先更新,status 使用新值)
         int rows = pointSettlementMapper.update(null,
                 new LambdaUpdateWrapper<PointSettlement>()
                         .eq(PointSettlement::getId, id)
                         .ne(PointSettlement::getStatus, "RECEIVED")
-                        .set(PointSettlement::getReceivedAmount, totalReceived)
+                        .setSql("received_amount = received_amount + " + receivedAmount)
+                        .setSql("status = CASE WHEN received_amount >= amount THEN 'RECEIVED' ELSE 'PARTIAL' END")
                         .set(PointSettlement::getReceivedDate,
                                 receivedDate != null ? LocalDate.parse(receivedDate) : null)
-                        .set(PointSettlement::getInvoiceNo, invoiceNo)
-                        .set(PointSettlement::getStatus, newStatus));
+                        .set(PointSettlement::getInvoiceNo, invoiceNo));
         if (rows == 0) throw new BusinessException("登记失败,记录可能已被其他操作更新,请刷新后重试");
+    }
+
+    /**
+     * 确认结算:状态 PENDING → CONFIRMED
+     */
+    public void confirm(Long id) {
+        PointSettlement existing = get(id);
+        if (!"PENDING".equals(existing.getStatus())) {
+            throw new BusinessException("仅待结算状态可确认");
+        }
+        int rows = pointSettlementMapper.update(null,
+                new LambdaUpdateWrapper<PointSettlement>()
+                        .eq(PointSettlement::getId, id)
+                        .eq(PointSettlement::getStatus, "PENDING")
+                        .set(PointSettlement::getStatus, "CONFIRMED"));
+        if (rows == 0) throw new BusinessException("确认失败,状态可能已变更");
+    }
+
+    /**
+     * 开票:状态 CONFIRMED → INVOICED
+     */
+    public void invoice(Long id) {
+        PointSettlement existing = get(id);
+        if (!"CONFIRMED".equals(existing.getStatus())) {
+            throw new BusinessException("仅已确认状态可开票");
+        }
+        int rows = pointSettlementMapper.update(null,
+                new LambdaUpdateWrapper<PointSettlement>()
+                        .eq(PointSettlement::getId, id)
+                        .eq(PointSettlement::getStatus, "CONFIRMED")
+                        .set(PointSettlement::getStatus, "INVOICED"));
+        if (rows == 0) throw new BusinessException("开票失败,状态可能已变更");
     }
 }

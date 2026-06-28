@@ -360,7 +360,9 @@ onMounted(() => {
       <div class="progress-title">合同:{{ progressContractName }}</div>
       <el-table v-loading="progressLoading" :data="progressList" row-key="id" style="width: 100%">
         <el-table-column prop="nodeOrder" label="节点序号" width="100" />
-        <el-table-column prop="approverId" label="审批人ID" min-width="140" />
+        <el-table-column label="审批人" min-width="140">
+          <template #default="{ row }">{{ userName(row.approverId) }}</template>
+        </el-table-column>
         <el-table-column label="结果" width="100">
           <template #default="{ row }">
             <el-tag

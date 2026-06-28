@@ -45,7 +45,7 @@ public class ContractPayment extends BaseEntity {
      */
     private String invoiceNo;
     /**
-     * PENDING待收付/RECEIVED已收付/OVERDUE逾期
+     * PENDING(待收/待付)/PARTIAL(部分收/付)/RECEIVED(已收/已付)/OVERDUE(逾期)
      */
     private String status;
     private String remark;

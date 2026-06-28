@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { maintenanceContractApi, projectApi, type MaintenanceContractDTO } from '@/api/business'
+import {
+  maintenanceContractApi,
+  projectApi,
+  customerApi,
+  supplierApi,
+  type MaintenanceContractDTO,
+} from '@/api/business'
 
 interface Option { label: string; value: string }
 
@@ -10,6 +16,8 @@ interface MaintenanceContract extends MaintenanceContractDTO {
 }
 
 const projectOptions = ref<Option[]>([])
+const customerOptions = ref<Option[]>([])
+const supplierOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<MaintenanceContract[]>([])
@@ -147,17 +155,35 @@ const rules: FormRules = {
   totalAmount: [{ required: true, validator: validateTotalAmount, trigger: 'blur' }],
   periodMonths: [{ required: true, validator: validatePeriodMonths, trigger: 'blur' }],
   projectId: [{ required: true, message: '请选择所属项目', trigger: 'change' }],
-  partyA: [{ required: true, message: '请输入甲方名称', trigger: 'blur' }],
-  partyB: [{ required: true, message: '请输入乙方名称', trigger: 'blur' }],
+  partyA: [{ required: true, message: '请选择甲方', trigger: 'change' }],
+  partyB: [{ required: true, message: '请选择乙方', trigger: 'change' }],
   signDate: [{ required: true, message: '请选择签订日期', trigger: 'change' }],
   responseSla: [{ required: true, message: '请输入响应SLA', trigger: 'blur' }],
 }
 
 async function loadOptions() {
   try {
-    const res: any = await projectApi.page({ pageNum: 1, pageSize: 200 })
-    projectOptions.value = (res.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    const [proj, customers, suppliers] = await Promise.all([
+      projectApi.page({ pageNum: 1, pageSize: 200 }),
+      customerApi.list(),
+      supplierApi.list(),
+    ]) as any[]
+    projectOptions.value = (proj.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    customerOptions.value = (customers || []).map((c: any) => ({ label: c.name, value: c.id }))
+    supplierOptions.value = (suppliers || []).map((s: any) => ({ label: s.name, value: s.id }))
   } catch {}
+}
+
+// 根据客户 ID 查找名称
+function customerName(id?: string) {
+  if (!id) return '-'
+  return customerOptions.value.find((c) => c.value === id)?.label || id
+}
+
+// 根据供应商 ID 查找名称
+function supplierName(id?: string) {
+  if (!id) return '-'
+  return supplierOptions.value.find((s) => s.value === id)?.label || id
 }
 
 onMounted(() => {
@@ -204,8 +230,12 @@ onMounted(() => {
       <el-table v-loading="loading" :data="tableData" row-key="id" style="width: 100%">
         <el-table-column prop="code" label="合同编号" min-width="130" />
         <el-table-column prop="name" label="合同名称" min-width="160" />
-        <el-table-column prop="partyA" label="甲方" min-width="140" />
-        <el-table-column prop="partyB" label="乙方" min-width="140" />
+        <el-table-column label="甲方" min-width="140">
+          <template #default="{ row }">{{ customerName(row.partyA) }}</template>
+        </el-table-column>
+        <el-table-column label="乙方" min-width="140">
+          <template #default="{ row }">{{ supplierName(row.partyB) }}</template>
+        </el-table-column>
         <el-table-column label="总金额" min-width="140" align="right">
           <template #default="{ row }">{{ formatAmount(row.totalAmount) }}</template>
         </el-table-column>
@@ -258,10 +288,14 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item label="甲方" prop="partyA">
-          <el-input v-model="form.partyA" placeholder="甲方名称" />
+          <el-select v-model="form.partyA" placeholder="请选择甲方(客户)" clearable filterable style="width: 100%">
+            <el-option v-for="opt in customerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="乙方" prop="partyB">
-          <el-input v-model="form.partyB" placeholder="乙方名称" />
+          <el-select v-model="form.partyB" placeholder="请选择乙方(供应商)" clearable filterable style="width: 100%">
+            <el-option v-for="opt in supplierOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="签订日期" prop="signDate">
           <el-date-picker v-model="form.signDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width: 100%" />

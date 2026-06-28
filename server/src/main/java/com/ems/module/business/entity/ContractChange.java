@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -37,5 +38,9 @@ public class ContractChange extends BaseEntity {
      * 变更字段(如 AMOUNT/START_DATE/END_DATE)
      */
     private String changeField;
+    /**
+     * 变更后日期(START_DATE/END_DATE 变更时使用)
+     */
+    private LocalDate newDate;
     private String remark;
 }

@@ -148,6 +148,22 @@ async function loadOptions() {
   } catch {}
 }
 
+// 根据点位 ID 查找名称
+function pointName(id?: string) {
+  if (!id) return '-'
+  return pointOptions.value.find((p) => p.value === id)?.label || id
+}
+// 根据报价 ID 查找报价单号
+function quoteCode(id?: string) {
+  if (!id) return '-'
+  return quoteOptions.value.find((q) => q.value === id)?.label || id
+}
+// 根据验收 ID 查找验收单号
+function acceptanceCode(id?: string) {
+  if (!id) return '-'
+  return acceptanceOptions.value.find((a) => a.value === id)?.label || id
+}
+
 onMounted(() => {
   loadOptions()
   loadData()
@@ -193,9 +209,15 @@ onMounted(() => {
       </div>
       <el-table v-loading="loading" :data="tableData" row-key="id" style="width: 100%">
         <el-table-column prop="code" label="结算单编号" min-width="130" />
-        <el-table-column prop="pointId" label="点位ID" min-width="120" />
-        <el-table-column prop="quoteId" label="报价ID" min-width="120" />
-        <el-table-column prop="acceptanceId" label="验收ID" min-width="120" />
+        <el-table-column label="点位名称" min-width="140">
+          <template #default="{ row }">{{ pointName(row.pointId) }}</template>
+        </el-table-column>
+        <el-table-column label="报价单号" min-width="140">
+          <template #default="{ row }">{{ quoteCode(row.quoteId) }}</template>
+        </el-table-column>
+        <el-table-column label="验收单号" min-width="140">
+          <template #default="{ row }">{{ acceptanceCode(row.acceptanceId) }}</template>
+        </el-table-column>
         <el-table-column label="结算金额" min-width="140" align="right">
           <template #default="{ row }">{{ formatAmount(row.amount) }}</template>
         </el-table-column>

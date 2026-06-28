@@ -27,6 +27,7 @@ const visibleMenus = computed<any[]>(() => {
 const expandedKeys = ref<Set<string | number>>(new Set())
 
 function toggleExpand(menu: any) {
+  if (props.collapsed) return
   const key = menu.id ?? menu.path
   if (expandedKeys.value.has(key)) expandedKeys.value.delete(key)
   else expandedKeys.value.add(key)
@@ -103,7 +104,7 @@ watch(
           <div
             class="nav-group-title"
             :class="{ 'is-collapsed-title': props.collapsed }"
-            @click="props.collapsed ? null : toggleExpand(menu)"
+            @click="toggleExpand(menu)"
           >
             <component :is="getIcon(menu.icon)" v-if="getIcon(menu.icon)" :size="18" class="nav-group-icon" />
             <span v-show="!props.collapsed" class="nav-text">{{ menu.name }}</span>

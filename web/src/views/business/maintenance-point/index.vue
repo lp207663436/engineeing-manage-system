@@ -126,6 +126,12 @@ async function loadOptions() {
   } catch {}
 }
 
+// 根据负责人 ID 查找名称
+function managerName(id?: string) {
+  if (!id) return '-'
+  return userOptions.value.find((u) => u.value === id)?.label || id
+}
+
 onMounted(() => {
   loadOptions()
   loadData()
@@ -179,7 +185,9 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="managerId" label="负责人ID" min-width="120" />
+        <el-table-column label="负责人" min-width="120">
+          <template #default="{ row }">{{ managerName(row.managerId) }}</template>
+        </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">

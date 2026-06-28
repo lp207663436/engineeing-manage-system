@@ -30,7 +30,7 @@ const typeMap: Record<string, string> = { NEW_BUILD: '新建工程', MAINTENANCE
 const statusMap: Record<string, string> = {
   DRAFT: '草稿', IN_PROGRESS: '进行中', COMPLETED: '已竣工', ARCHIVED: '已归档',
 }
-const statusTagType: Record<string, string> = {
+const statusTagType: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
   DRAFT: 'info', IN_PROGRESS: 'warning', COMPLETED: 'success', ARCHIVED: 'info',
 }
 
@@ -185,8 +185,8 @@ onMounted(() => {
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button link type="primary" size="small" @click="handleEdit(row as Project)">编辑</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(row as Project)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

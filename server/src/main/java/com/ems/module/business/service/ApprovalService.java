@@ -22,6 +22,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -70,7 +71,8 @@ public class ApprovalService {
             throw new BusinessException("未找到启用的审批流程: " + businessType);
         }
 
-        // TODO: amountThreshold 字段预留,暂未实现金额阈值路由,当前按 nodeOrder 顺序审批
+        // 金额阈值路由:根据业务金额查找 amount_threshold >= 业务金额 的第一个节点作为起始节点
+        BigDecimal businessAmount = getBusinessAmount(businessType, businessId);
         List<ApprovalNode> nodes = approvalNodeMapper.selectList(
                 new LambdaQueryWrapper<ApprovalNode>()
                         .eq(ApprovalNode::getFlowId, flow.getId())
@@ -79,7 +81,19 @@ public class ApprovalService {
             throw new BusinessException("审批流程未配置节点");
         }
 
-        ApprovalNode firstNode = nodes.get(0);
+        ApprovalNode firstNode = null;
+        for (ApprovalNode node : nodes) {
+            // amount_threshold 为 NULL 表示无上限,始终满足
+            if (node.getAmountThreshold() == null
+                    || node.getAmountThreshold().compareTo(businessAmount) >= 0) {
+                firstNode = node;
+                break;
+            }
+        }
+        // 如果所有节点阈值都小于业务金额,取最后一个节点作为兜底
+        if (firstNode == null) {
+            firstNode = nodes.get(nodes.size() - 1);
+        }
         ApprovalLog log = new ApprovalLog();
         log.setFlowId(flow.getId());
         log.setBusinessType(businessType);
@@ -150,18 +164,34 @@ public class ApprovalService {
         // 重新查询 log 获取完整数据用于后续流程
         log = approvalLogMapper.selectById(logId);
 
+        // 审批结果校验:必须为 APPROVED 或 REJECTED
+        if (!"APPROVED".equals(result) && !"REJECTED".equals(result)) {
+            throw new BusinessException("无效的审批结果");
+        }
+
         if ("REJECTED".equals(result)) {
             updateBusinessApprovalStatus(log.getBusinessType(), log.getBusinessId(), "REJECTED");
             return;
         }
 
-        // TODO: amountThreshold 字段预留,暂未实现金额阈值路由,当前按 nodeOrder 顺序审批
-        ApprovalNode nextNode = approvalNodeMapper.selectOne(
+        // 金额阈值路由:审批通过后查找下一节点,跳过业务金额未达到阈值的节点
+        BigDecimal businessAmount = getBusinessAmount(log.getBusinessType(), log.getBusinessId());
+        List<ApprovalNode> candidateNodes = approvalNodeMapper.selectList(
                 new LambdaQueryWrapper<ApprovalNode>()
                         .eq(ApprovalNode::getFlowId, log.getFlowId())
                         .gt(ApprovalNode::getNodeOrder, log.getNodeOrder())
-                        .orderByAsc(ApprovalNode::getNodeOrder)
-                        .last("LIMIT 1"));
+                        .orderByAsc(ApprovalNode::getNodeOrder));
+
+        ApprovalNode nextNode = null;
+        for (ApprovalNode candidate : candidateNodes) {
+            // 如果节点有阈值且业务金额未达到阈值,则跳过该节点
+            if (candidate.getAmountThreshold() != null
+                    && businessAmount.compareTo(candidate.getAmountThreshold()) < 0) {
+                continue;
+            }
+            nextNode = candidate;
+            break;
+        }
 
         if (nextNode != null) {
             ApprovalLog newLog = new ApprovalLog();
@@ -329,6 +359,24 @@ public class ApprovalService {
     }
 
     // ==================== 内部方法 ====================
+
+    /**
+     * 获取业务实体的金额(用于金额阈值路由)
+     */
+    private BigDecimal getBusinessAmount(String businessType, Long businessId) {
+        if ("CONTRACT_APPROVAL".equals(businessType)) {
+            Contract contract = contractMapper.selectById(businessId);
+            if (contract != null && contract.getAmount() != null) {
+                return contract.getAmount();
+            }
+        } else if ("QUOTE_APPROVAL".equals(businessType)) {
+            Quote quote = quoteMapper.selectById(businessId);
+            if (quote != null && quote.getAmount() != null) {
+                return quote.getAmount();
+            }
+        }
+        return BigDecimal.ZERO;
+    }
 
     private void updateBusinessApprovalStatus(String businessType, Long businessId, String status) {
         if ("CONTRACT_APPROVAL".equals(businessType)) {
