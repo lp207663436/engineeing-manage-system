@@ -48,12 +48,30 @@ public class DbInitRunner implements CommandLineRunner {
         createSysDictTable();
         createSysDictItemTable();
         createContractChangeTable();
+        ensureAuditColumns();
         seedBusinessMenus();
         System.out.println("[DbInitRunner] 业务模块表初始化完成");
     }
 
     private void exec(String sql) {
         jdbc.execute(sql);
+    }
+
+    /**
+     * 为所有继承 BaseEntity 的表补充 create_by / update_by 列(幂等,列已存在则跳过)。
+     */
+    private void ensureAuditColumns() {
+        String[] tables = {
+                "project", "contract", "quote", "equipment", "progress", "acceptance",
+                "maintenance_point", "maintenance_contract", "point_settlement", "quarterly_settlement",
+                "maintenance_task", "maintenance_record", "attachment", "contract_payment",
+                "approval_flow", "approval_node", "approval_log", "customer", "supplier",
+                "contract_change", "sys_user", "sys_role"
+        };
+        for (String table : tables) {
+            try { exec("ALTER TABLE " + table + " ADD COLUMN create_by BIGINT COMMENT '创建人'"); } catch (Exception ignore) {}
+            try { exec("ALTER TABLE " + table + " ADD COLUMN update_by BIGINT COMMENT '更新人'"); } catch (Exception ignore) {}
+        }
     }
 
     private void createProjectTable() {

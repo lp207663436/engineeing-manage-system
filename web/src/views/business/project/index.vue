@@ -2,10 +2,15 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { projectApi, type ProjectDTO } from '@/api/business'
+import { userApi } from '@/api/system'
+
+interface Option { label: string; value: string }
 
 interface Project extends ProjectDTO {
   createTime?: string
 }
+
+const userOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<Project[]>([])
@@ -105,7 +110,22 @@ const rules = {
   name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
 }
 
+// 加载项目经理(用户)选项列表
+async function loadOptions() {
+  try {
+    const res: any = await userApi.page({ pageNum: 1, pageSize: 999 })
+    userOptions.value = (res.list || []).map((u: any) => ({ label: u.name || u.username, value: u.id }))
+  } catch {}
+}
+
+// 根据经理 ID 查找名称
+function managerName(id?: string) {
+  if (!id) return '-'
+  return userOptions.value.find((u) => u.value === id)?.label || id
+}
+
 onMounted(() => {
+  loadOptions()
   loadData()
 })
 </script>
@@ -147,6 +167,9 @@ onMounted(() => {
         <el-table-column prop="code" label="项目编号" min-width="120" />
         <el-table-column prop="name" label="项目名称" min-width="180" />
         <el-table-column prop="customerName" label="客户" min-width="140" />
+        <el-table-column label="项目经理" min-width="120">
+          <template #default="{ row }">{{ managerName(row.managerId) }}</template>
+        </el-table-column>
         <el-table-column label="类型" width="100">
           <template #default="{ row }">{{ typeMap[row.type] || row.type }}</template>
         </el-table-column>
@@ -190,6 +213,11 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="客户名称">
           <el-input v-model="form.customerName" placeholder="请输入客户名称" />
+        </el-form-item>
+        <el-form-item label="项目经理">
+          <el-select v-model="form.managerId" placeholder="请选择项目经理" clearable filterable style="width: 100%">
+            <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="项目地址">
           <el-input v-model="form.address" placeholder="请输入项目地址" />

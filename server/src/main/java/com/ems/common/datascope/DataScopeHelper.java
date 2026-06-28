@@ -13,7 +13,7 @@ import com.ems.security.context.SecurityContext;
  * - 超管(userId=1):不过滤
  * - dataScope=1(全部):不过滤
  * - dataScope=2(本部门):create_by IN (本部门用户ID)
- * - dataScope=3(本部门及以下):create_by IN (本部门+直接子部门用户ID)
+ * - dataScope=3(本部门及以下):create_by IN (本部门+所有子孙部门用户ID,递归查询)
  * - dataScope=4(本人):create_by = currentUserId
  */
 public final class DataScopeHelper {
@@ -47,10 +47,14 @@ public final class DataScopeHelper {
                 if (deptId == null) {
                     wrapper.apply(createByField + " = {0}", userId);
                 } else {
-                    // 包含本部门 + 直接子部门(两级,简化处理)
-                    wrapper.apply("(" + createByField + " IN (SELECT id FROM sys_user WHERE deleted = 0 AND dept_id = {0})" +
-                            " OR " + createByField + " IN (SELECT id FROM sys_user WHERE deleted = 0 AND dept_id IN " +
-                            "(SELECT id FROM sys_dept WHERE deleted = 0 AND parent_id = {0})))", deptId);
+                    // 递归查询本部门及所有子孙部门(MySQL 8.0+ WITH RECURSIVE)
+                    wrapper.apply("(" + createByField + " IN (SELECT id FROM sys_user WHERE deleted = 0 AND dept_id IN (" +
+                            "WITH RECURSIVE dept_tree AS (" +
+                            "SELECT id FROM sys_dept WHERE id = {0} AND deleted = 0 " +
+                            "UNION ALL " +
+                            "SELECT d.id FROM sys_dept d INNER JOIN dept_tree t ON d.parent_id = t.id WHERE d.deleted = 0" +
+                            ") SELECT id FROM dept_tree" +
+                            ")))", deptId);
                 }
                 break;
             default:

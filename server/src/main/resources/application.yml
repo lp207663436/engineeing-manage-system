@@ -15,7 +15,7 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   global-config:
     db-config:
       logic-delete-field: deleted
@@ -24,7 +24,7 @@ mybatis-plus:
       id-type: assign_id
 ems:
   jwt:
-    secret: ems-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
+    secret: ${EMS_JWT_SECRET:ems-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}
     expire: 86400
     header: Authorization
     prefix: "Bearer "

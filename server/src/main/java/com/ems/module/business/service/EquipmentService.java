@@ -30,6 +30,7 @@ public class EquipmentService {
         if (StringUtils.hasText(category)) wrapper.eq(Equipment::getCategory, category);
         if (StringUtils.hasText(status)) wrapper.eq(Equipment::getStatus, status);
         if (projectId != null) wrapper.eq(Equipment::getProjectId, projectId);
+        DataScopeHelper.applyTo(wrapper);
         wrapper.orderByDesc(Equipment::getCreateTime);
         Page<Equipment> page = equipmentMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal());

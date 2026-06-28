@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { contractApi, projectApi, approvalApi, type ContractDTO, type ApprovalLogDTO } from '@/api/business'
+import {
+  contractApi,
+  projectApi,
+  approvalApi,
+  customerApi,
+  supplierApi,
+  type ContractDTO,
+  type ApprovalLogDTO,
+} from '@/api/business'
+import { userApi } from '@/api/system'
 
 interface Option { label: string; value: string }
 
@@ -10,6 +19,9 @@ interface Contract extends ContractDTO {
 }
 
 const projectOptions = ref<Option[]>([])
+const customerOptions = ref<Option[]>([])
+const supplierOptions = ref<Option[]>([])
+const userOptions = ref<Option[]>([])
 
 const loading = ref(false)
 const tableData = ref<Contract[]>([])
@@ -116,8 +128,8 @@ function formatAmount(v: number) {
 const rules = {
   code: [{ required: true, message: '请输入合同编号', trigger: 'blur' }],
   name: [{ required: true, message: '请输入合同名称', trigger: 'blur' }],
-  partyA: [{ required: true, message: '请输入甲方名称', trigger: 'blur' }],
-  partyB: [{ required: true, message: '请输入乙方名称', trigger: 'blur' }],
+  partyA: [{ required: true, message: '请选择甲方', trigger: 'change' }],
+  partyB: [{ required: true, message: '请选择乙方', trigger: 'change' }],
   amount: [
     { required: true, message: '请输入合同金额', trigger: 'blur' },
     { type: 'number', min: 0.01, message: '合同金额必须大于0', trigger: 'blur' },
@@ -166,9 +178,35 @@ async function handleViewProgress(row: Contract) {
 
 async function loadOptions() {
   try {
-    const res: any = await projectApi.page({ pageNum: 1, pageSize: 200 })
-    projectOptions.value = (res.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    const [proj, customers, suppliers, users] = await Promise.all([
+      projectApi.page({ pageNum: 1, pageSize: 200 }),
+      customerApi.list(),
+      supplierApi.list(),
+      userApi.page({ pageNum: 1, pageSize: 999 }),
+    ]) as any[]
+    projectOptions.value = (proj.list || []).map((p: any) => ({ label: `${p.code} ${p.name}`, value: p.id }))
+    customerOptions.value = (customers || []).map((c: any) => ({ label: c.name, value: c.id }))
+    supplierOptions.value = (suppliers || []).map((s: any) => ({ label: s.name, value: s.id }))
+    userOptions.value = (users.list || []).map((u: any) => ({ label: u.name || u.username, value: u.id }))
   } catch {}
+}
+
+// 根据客户 ID 查找名称
+function customerName(id?: string) {
+  if (!id) return '-'
+  return customerOptions.value.find((c) => c.value === id)?.label || id
+}
+
+// 根据供应商 ID 查找名称
+function supplierName(id?: string) {
+  if (!id) return '-'
+  return supplierOptions.value.find((s) => s.value === id)?.label || id
+}
+
+// 根据用户 ID 查找名称(审批人)
+function userName(id?: string) {
+  if (!id) return '-'
+  return userOptions.value.find((u) => u.value === id)?.label || id
 }
 
 onMounted(() => {
@@ -210,8 +248,12 @@ onMounted(() => {
       <el-table v-loading="loading" :data="tableData" row-key="id" style="width: 100%">
         <el-table-column prop="code" label="合同编号" min-width="120" />
         <el-table-column prop="name" label="合同名称" min-width="180" />
-        <el-table-column prop="partyA" label="甲方" min-width="140" />
-        <el-table-column prop="partyB" label="乙方" min-width="140" />
+        <el-table-column label="甲方" min-width="140">
+          <template #default="{ row }">{{ customerName(row.partyA) }}</template>
+        </el-table-column>
+        <el-table-column label="乙方" min-width="140">
+          <template #default="{ row }">{{ supplierName(row.partyB) }}</template>
+        </el-table-column>
         <el-table-column label="金额" min-width="130" align="right">
           <template #default="{ row }">{{ formatAmount(row.amount) }}</template>
         </el-table-column>
@@ -269,10 +311,14 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item label="甲方" prop="partyA">
-          <el-input v-model="form.partyA" placeholder="甲方名称" />
+          <el-select v-model="form.partyA" placeholder="请选择甲方(客户)" clearable filterable style="width: 100%">
+            <el-option v-for="opt in customerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="乙方" prop="partyB">
-          <el-input v-model="form.partyB" placeholder="乙方名称" />
+          <el-select v-model="form.partyB" placeholder="请选择乙方(供应商)" clearable filterable style="width: 100%">
+            <el-option v-for="opt in supplierOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="合同金额" prop="amount">
           <el-input-number v-model="form.amount" :min="0.01" :precision="2" controls-position="right" style="width: 100%" />

@@ -26,7 +26,7 @@ public class AuthService {
     /**
      * JWT 过期时间(秒),与 Redis 中 token 缓存 TTL 保持一致。
      */
-    @Value("${jwt.expire-seconds:86400}")
+    @Value("${ems.jwt.expire:86400}")
     private long jwtExpireSeconds;
 
     public LoginVO login(LoginDTO dto) {

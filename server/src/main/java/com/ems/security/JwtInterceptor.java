@@ -50,7 +50,15 @@ public class JwtInterceptor implements HandlerInterceptor {
 
         // 查询用户部门 + 角色数据范围,填充到 SecurityContext
         SysUser sysUser = sysUserMapper.selectById(userId);
-        Long deptId = sysUser == null ? null : sysUser.getDeptId();
+        if (sysUser == null) {
+            redisTemplate.delete("token:" + userId);
+            throw new BusinessException(401, "用户不存在");
+        }
+        if (sysUser.getStatus() != null && sysUser.getStatus() == 0) {
+            redisTemplate.delete("token:" + userId);
+            throw new BusinessException(401, "账号已被禁用");
+        }
+        Long deptId = sysUser.getDeptId();
         Integer dataScope = resolveDataScope(userId);
 
         CurrentUser user = CurrentUser.builder()
@@ -71,14 +79,14 @@ public class JwtInterceptor implements HandlerInterceptor {
         if (SecurityContext.SUPER_ADMIN_ID.equals(userId)) return 1;
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(
                 new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
-        if (userRoles.isEmpty()) return 3; // 无角色默认仅本人
+        if (userRoles.isEmpty()) return 4; // 无角色默认仅本人
         Set<Long> roleIds = userRoles.stream().map(SysUserRole::getRoleId).collect(Collectors.toSet());
         List<SysRole> roles = sysRoleMapper.selectBatchIds(roleIds);
         return roles.stream()
                 .map(SysRole::getDataScope)
                 .filter(s -> s != null)
                 .min(Comparator.naturalOrder())
-                .orElse(3);
+                .orElse(4);
     }
 
     @Override

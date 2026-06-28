@@ -2,10 +2,20 @@ spring:
   datasource:
     url: jdbc:mysql://192.168.12.157:19980/engine_manage?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: "Abc123++"
+    password: ${DB_PASSWORD:Abc123++}
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
       host: 192.168.12.157
       port: 6379
       database: 0
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: 5s
+        shutdown-timeout: 200ms
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

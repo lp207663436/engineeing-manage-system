@@ -49,8 +49,10 @@ public class SysUserService {
         user.setPhone(dto.getPhone());
         user.setEmail(dto.getEmail());
         user.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
-        user.setPassword(passwordEncoder.encode(
-                StringUtils.hasText(dto.getPassword()) ? dto.getPassword() : "123456"));
+        if (!StringUtils.hasText(dto.getPassword())) {
+            throw new BusinessException("密码不能为空");
+        }
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
         userMapper.insert(user);
     }
 

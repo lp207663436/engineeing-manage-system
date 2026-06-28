@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 
 const Layout = () => import('@/layout/index.vue')
@@ -8,6 +9,12 @@ export const staticRoutes: RouteRecordRaw[] = [
     path: '/login',
     name: 'Login',
     component: () => import('@/views/login/index.vue'),
+    meta: { hidden: true },
+  },
+  {
+    path: '/403',
+    name: 'Forbidden',
+    component: () => import('@/views/error/403.vue'),
     meta: { hidden: true },
   },
   {
@@ -232,26 +239,71 @@ const router = createRouter({
   routes: staticRoutes,
 })
 
-// 全局前置守卫:无 token → /login;有 token 访问 /login → /
-router.beforeEach((to, _from, next) => {
+// 从用户菜单树中递归收集所有权限标识
+function collectPermissions(menus: any[]): Set<string> {
+  const perms = new Set<string>()
+  const walk = (list: any[]) => {
+    list.forEach((m) => {
+      if (m.permission) perms.add(m.permission)
+      if (Array.isArray(m.children) && m.children.length > 0) walk(m.children)
+    })
+  }
+  walk(menus)
+  return perms
+}
+
+// 全局前置守卫:无 token → /login;有 token 访问 /login → /;
+// token 存在但用户信息缺失时自动拉取;路由 meta.permission 校验权限
+router.beforeEach(async (to, _from, next) => {
   const userStore = useUserStore()
+
   if (to.path === '/login') {
-    if (userStore.token) {
-      next('/')
-    } else {
-      next()
-    }
+    if (userStore.token) next('/')
+    else next()
+    return
+  }
+  // 403/404 等错误页直接放行
+  if (to.path === '/403') {
+    next()
     return
   }
   if (!userStore.token) {
     next('/login')
     return
   }
+
+  // token 存在但 userId 为空,自动拉取用户信息
+  if (!userStore.userId) {
+    const info = await userStore.fetchUserInfo()
+    if (!info) {
+      // 拉取失败(token 失效等),回到登录页
+      userStore.clearStorage()
+      next('/login')
+      return
+    }
+  }
+
   // 已登录但未加载菜单,加载一次
   if (userStore.menus.length === 0) {
-    userStore.loadMenus().then(() => next()).catch(() => next())
-    return
+    try {
+      await userStore.loadMenus()
+    } catch {
+      next()
+      return
+    }
   }
+
+  // 权限校验:路由 meta.permission 必须命中用户权限集合
+  const requiredPerm = to.meta?.permission as string | undefined
+  if (requiredPerm) {
+    const perms = collectPermissions(userStore.menus)
+    if (!perms.has(requiredPerm)) {
+      ElMessage.warning('您没有权限访问该页面')
+      next('/403')
+      return
+    }
+  }
+
   next()
 })
 

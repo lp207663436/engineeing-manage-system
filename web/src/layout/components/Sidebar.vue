@@ -1,68 +1,89 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import * as LucideIcons from 'lucide-vue-next'
+import { ChevronDown } from 'lucide-vue-next'
 
 const props = defineProps<{ collapsed: boolean; isMobile?: boolean; mobileOpen?: boolean }>()
 
 const route = useRoute()
 const userStore = useUserStore()
 
-// 合并静态路由的 system 分组 + 后端动态菜单
-// 简化处理:直接用前端 staticRoutes 中带 meta.title 的顶层路由组
-const menuGroups = computed(() => {
-  // 从 router.options.routes 中取带 children 的非隐藏路由
-  const allRoutes = [
-    { path: '/dashboard', meta: { title: '首页', icon: 'Home' }, single: true },
-    { path: '/business', meta: { title: '业务管理', icon: 'Briefcase' }, children: [
-      { path: '/business/project', meta: { title: '项目管理', icon: 'FolderKanban' } },
-      { path: '/business/contract', meta: { title: '合同管理', icon: 'FileText' } },
-      { path: '/business/quote', meta: { title: '报价管理', icon: 'FileSpreadsheet' } },
-      { path: '/business/equipment', meta: { title: '设备台账', icon: 'Server' } },
-      { path: '/business/progress', meta: { title: '进度管理', icon: 'ListTree' } },
-      { path: '/business/acceptance', meta: { title: '验收管理', icon: 'CheckSquare' } },
-      { path: '/business/contract-payment', meta: { title: '合同收付款', icon: 'Money' } },
-      { path: '/business/approval', meta: { title: '审批中心', icon: 'Stamp' } },
-      { path: '/business/approval/flow-config', meta: { title: '审批流配置', icon: 'Settings' } },
-    ]},
-    { path: '/business-maintenance', meta: { title: '维护型项目', icon: 'Wrench' }, children: [
-      { path: '/business/maintenance-point', meta: { title: '维护点位', icon: 'MapPin' } },
-      { path: '/business/maintenance-contract', meta: { title: '维保主合同', icon: 'FileSignature' } },
-      { path: '/business/point-settlement', meta: { title: '点位结算', icon: 'Receipt' } },
-      { path: '/business/quarterly-settlement', meta: { title: '季度结算', icon: 'CalendarClock' } },
-      { path: '/business/maintenance-task', meta: { title: '维保任务', icon: 'Wrench' } },
-      { path: '/business/maintenance-record', meta: { title: '维保记录', icon: 'ClipboardList' } },
-    ]},
-    { path: '/business-dashboard', meta: { title: '运营看板', icon: 'BarChart3' }, children: [
-      { path: '/business/dashboard', meta: { title: '结算看板', icon: 'BarChart3' } },
-      { path: '/business/attachment', meta: { title: '附件管理', icon: 'Paperclip' } },
-      { path: '/business/report', meta: { title: '报表中心', icon: 'FileSpreadsheet' } },
-      { path: '/business/maintenance-stat', meta: { title: '维保统计', icon: 'BarChart3' } },
-      { path: '/business/customer', meta: { title: '客户档案', icon: 'Users' } },
-      { path: '/business/supplier', meta: { title: '供应商档案', icon: 'Truck' } },
-      { path: '/business/contract-change', meta: { title: '合同变更', icon: 'FilePenLine' } },
-      { path: '/business/quote/version-compare', meta: { title: '报价版本对比', icon: 'GitCompare' } },
-      { path: '/business/progress/gantt', meta: { title: '进度甘特图', icon: 'CalendarRange' } },
-      { path: '/business/progress/dashboard', meta: { title: '进度看板', icon: 'KanbanSquare' } },
-    ]},
-    { path: '/system', meta: { title: '系统管理', icon: 'Settings' }, children: [
-      { path: '/system/user', meta: { title: '用户管理', icon: 'User' } },
-      { path: '/system/role', meta: { title: '角色管理', icon: 'UserCog' } },
-      { path: '/system/menu', meta: { title: '菜单管理', icon: 'Menu' } },
-      { path: '/system/dept', meta: { title: '部门管理', icon: 'Building2' } },
-      { path: '/system/dict', meta: { title: '数据字典', icon: 'BookMarked' } },
-    ]},
-  ]
-  return allRoutes
+// 菜单类型:1=目录,2=菜单,3=按钮(不在侧边栏展示)
+const MENU_TYPE_DIR = 1
+const MENU_TYPE_MENU = 2
+
+// 仅展示目录(1)与菜单(2),过滤掉按钮(3)与禁用项
+const visibleMenus = computed<any[]>(() => {
+  const filter = (list: any[]): any[] =>
+    (list || [])
+      .filter((m) => (m.type === MENU_TYPE_DIR || m.type === MENU_TYPE_MENU) && m.status !== 0)
+      .map((m) => ({ ...m, children: m.children ? filter(m.children) : [] }))
+  return filter(userStore.menus)
 })
+
+// 展开状态:记录已展开的目录 id
+const expandedKeys = ref<Set<string | number>>(new Set())
+
+function toggleExpand(menu: any) {
+  const key = menu.id ?? menu.path
+  if (expandedKeys.value.has(key)) expandedKeys.value.delete(key)
+  else expandedKeys.value.add(key)
+  // 触发响应式更新
+  expandedKeys.value = new Set(expandedKeys.value)
+}
+
+function isExpanded(menu: any) {
+  return expandedKeys.value.has(menu.id ?? menu.path)
+}
+
+// 当前激活路径包含判断(用于自动展开父级)
+const activePath = computed(() => route.path)
+
+function isActive(menu: any) {
+  return activePath.value === normalizePath(menu.path)
+}
+
+function normalizePath(p?: string) {
+  if (!p) return ''
+  return p.startsWith('/') ? p : `/${p}`
+}
+
+// 菜单是否需要展开图标(目录且有可见子项)
+function hasVisibleChildren(menu: any) {
+  return Array.isArray(menu.children) && menu.children.length > 0
+}
 
 function getIcon(name?: string) {
   if (!name) return null
   return (LucideIcons as any)[name] || null
 }
 
-const activePath = computed(() => route.path)
+// 路由切换或菜单加载时,自动展开当前激活菜单的父级目录
+function autoExpandActive(menus: any[], parents: any[] = []) {
+  for (const m of menus) {
+    if (m.type === MENU_TYPE_MENU && isActive(m)) {
+      parents.forEach((p) => expandedKeys.value.add(p.id ?? p.path))
+      return true
+    }
+    if (m.children?.length) {
+      if (autoExpandActive(m.children, [...parents, m])) return true
+    }
+  }
+  return false
+}
+
+watch(
+  () => [visibleMenus.value, activePath.value],
+  () => {
+    if (visibleMenus.value.length) {
+      autoExpandActive(visibleMenus.value)
+      expandedKeys.value = new Set(expandedKeys.value)
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -76,31 +97,48 @@ const activePath = computed(() => route.path)
       <span v-show="!props.collapsed" class="logo-text">EMS</span>
     </div>
     <nav class="sidebar-nav">
-      <template v-for="item in menuGroups" :key="item.path">
-        <!-- 单项(无 children) -->
-        <router-link
-          v-if="item.single"
-          :to="item.path"
-          class="nav-item"
-          :class="{ 'is-active': activePath === item.path }"
-        >
-          <component :is="getIcon(item.meta?.icon)" v-if="getIcon(item.meta?.icon)" :size="18" />
-          <span v-show="!props.collapsed" class="nav-text">{{ item.meta?.title }}</span>
-        </router-link>
-        <!-- 分组(有 children) -->
-        <div v-else class="nav-group">
-          <div v-show="!props.collapsed" class="nav-group-title">{{ item.meta?.title }}</div>
-          <router-link
-            v-for="child in item.children"
-            :key="child.path"
-            :to="child.path"
-            class="nav-item"
-            :class="{ 'is-active': activePath === child.path }"
+      <template v-for="menu in visibleMenus" :key="menu.id ?? menu.path">
+        <!-- 目录(type=1):可展开子菜单 -->
+        <div v-if="menu.type === MENU_TYPE_DIR && hasVisibleChildren(menu)" class="nav-group">
+          <div
+            class="nav-group-title"
+            :class="{ 'is-collapsed-title': props.collapsed }"
+            @click="props.collapsed ? null : toggleExpand(menu)"
           >
-            <component :is="getIcon(child.meta?.icon)" v-if="getIcon(child.meta?.icon)" :size="18" />
-            <span v-show="!props.collapsed" class="nav-text">{{ child.meta?.title }}</span>
-          </router-link>
+            <component :is="getIcon(menu.icon)" v-if="getIcon(menu.icon)" :size="18" class="nav-group-icon" />
+            <span v-show="!props.collapsed" class="nav-text">{{ menu.name }}</span>
+            <ChevronDown
+              v-show="!props.collapsed"
+              :size="14"
+              class="nav-arrow"
+              :class="{ 'is-open': isExpanded(menu) }"
+            />
+          </div>
+          <div v-show="!props.collapsed && isExpanded(menu)" class="nav-group-children">
+            <template v-for="child in menu.children" :key="child.id ?? child.path">
+              <!-- 嵌套目录(暂按平铺处理:仅渲染叶子菜单) -->
+              <router-link
+                v-if="child.type === MENU_TYPE_MENU"
+                :to="normalizePath(child.path)"
+                class="nav-item nav-item-child"
+                :class="{ 'is-active': isActive(child) }"
+              >
+                <component :is="getIcon(child.icon)" v-if="getIcon(child.icon)" :size="16" />
+                <span class="nav-text">{{ child.name }}</span>
+              </router-link>
+            </template>
+          </div>
         </div>
+        <!-- 菜单(type=2):直接路由链接 -->
+        <router-link
+          v-else-if="menu.type === MENU_TYPE_MENU"
+          :to="normalizePath(menu.path)"
+          class="nav-item"
+          :class="{ 'is-active': isActive(menu) }"
+        >
+          <component :is="getIcon(menu.icon)" v-if="getIcon(menu.icon)" :size="18" />
+          <span v-show="!props.collapsed" class="nav-text">{{ menu.name }}</span>
+        </router-link>
       </template>
     </nav>
   </aside>
@@ -139,11 +177,28 @@ const activePath = computed(() => route.path)
 .sidebar-nav { flex: 1; padding: 12px 8px; overflow-y: auto; }
 .nav-group { margin-bottom: 8px; }
 .nav-group-title {
-  padding: 8px 12px 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: #4B5563;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  .nav-group-icon { flex-shrink: 0; }
+  &:hover { background: #F3F4F6; color: #1F2937; }
+  &.is-collapsed-title { justify-content: center; }
+  .nav-text { flex: 1; font-weight: 500; }
+  .nav-arrow { transition: transform 0.2s ease; flex-shrink: 0; &.is-open { transform: rotate(180deg); } }
+}
+.nav-group-children { padding-left: 12px; }
+.nav-group-title:not(.is-collapsed-title) {
   font-size: 11px;
   color: #9CA3AF;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  font-weight: 600;
 }
 .nav-item {
   display: flex;
@@ -163,4 +218,5 @@ const activePath = computed(() => route.path)
   }
   .nav-text { flex: 1; }
 }
+.nav-item-child { padding-left: 14px; font-size: 13px; }
 </style>

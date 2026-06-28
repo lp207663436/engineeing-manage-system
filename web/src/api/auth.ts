@@ -7,7 +7,13 @@ export interface LoginDTO {
 
 export interface LoginVO {
   token: string
-  userId: number
+  userId: string
+  username: string
+  name: string
+}
+
+export interface UserInfoVO {
+  userId: string
   username: string
   name: string
 }
@@ -18,4 +24,9 @@ export function login(data: LoginDTO): Promise<LoginVO> {
 
 export function logout(): Promise<void> {
   return request.post('/auth/logout')
+}
+
+// 获取当前登录用户信息(token 存在但 userId 为空时调用)
+export function getUserInfo(): Promise<UserInfoVO> {
+  return request.get('/sys/user/info')
 }

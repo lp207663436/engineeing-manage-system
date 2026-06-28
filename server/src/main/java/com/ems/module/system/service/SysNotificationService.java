@@ -65,10 +65,11 @@ public class SysNotificationService {
      * 分页查询通知,按 userId 过滤,按 createTime 倒序
      */
     public PageResult<SysNotification> page(long pageNum, long pageSize, Long userId, Integer isRead) {
-        LambdaQueryWrapper<SysNotification> wrapper = new LambdaQueryWrapper<>();
-        if (userId != null) {
-            wrapper.eq(SysNotification::getUserId, userId);
+        if (userId == null) {
+            throw new BusinessException(401, "未登录");
         }
+        LambdaQueryWrapper<SysNotification> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysNotification::getUserId, userId);
         if (isRead != null) {
             wrapper.eq(SysNotification::getIsRead, isRead);
         }

@@ -9,7 +9,6 @@ import com.ems.module.system.entity.SysRole;
 import com.ems.module.system.entity.SysRoleMenu;
 import com.ems.module.system.mapper.SysRoleMapper;
 import com.ems.module.system.mapper.SysRoleMenuMapper;
-import com.ems.security.context.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,7 +65,9 @@ public class SysRoleService {
 
     @Transactional
     public void delete(Long id) {
-        if (SecurityContext.SUPER_ADMIN_ID.equals(id)) throw new BusinessException("不能删除超级管理员角色");
+        SysRole role = roleMapper.selectById(id);
+        if (role == null) throw new BusinessException("角色不存在");
+        if ("admin".equals(role.getCode())) throw new BusinessException("不能删除超级管理员角色");
         roleMapper.deleteById(id);
         roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, id));
     }
