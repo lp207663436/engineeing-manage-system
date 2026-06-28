@@ -66,7 +66,7 @@ public class DbInitRunner implements CommandLineRunner {
                 "maintenance_point", "maintenance_contract", "point_settlement", "quarterly_settlement",
                 "maintenance_task", "maintenance_record", "attachment", "contract_payment",
                 "approval_flow", "approval_node", "approval_log", "customer", "supplier",
-                "contract_change", "sys_user", "sys_role"
+                "contract_change", "sys_user", "sys_role", "sys_dept", "sys_menu"
         };
         for (String table : tables) {
             try { exec("ALTER TABLE " + table + " ADD COLUMN create_by BIGINT COMMENT '创建人'"); } catch (Exception ignore) {}
@@ -279,17 +279,21 @@ public class DbInitRunner implements CommandLineRunner {
                 "point_id BIGINT NOT NULL COMMENT '关联点位'," +
                 "quote_id BIGINT NOT NULL COMMENT '关联报价'," +
                 "acceptance_id BIGINT COMMENT '关联验收单'," +
+                "contract_id BIGINT COMMENT '关联合同'," +
+                "period_no VARCHAR(20) COMMENT '季度编号如2026-Q2'," +
                 "amount DECIMAL(14,2) NOT NULL COMMENT '结算金额(=报价金额)'," +
-                "status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/CONFIRMED/INVOICED/RECEIVED/CLOSED'," +
+                "status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/CONFIRMED/INVOICED/PARTIAL/RECEIVED/CLOSED'," +
                 "invoice_no VARCHAR(100) COMMENT '发票号'," +
                 "received_amount DECIMAL(14,2) COMMENT '已回款金额'," +
                 "received_date DATE COMMENT '回款日期'," +
                 "remark VARCHAR(500) COMMENT '备注'," +
                 "create_by BIGINT," +
+                "update_by BIGINT," +
                 "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
                 "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
                 "deleted TINYINT DEFAULT 0," +
                 "UNIQUE KEY uk_code (code)," +
+                "UNIQUE KEY uk_quarterly_settlement (contract_id, period_no)," +
                 "INDEX idx_point (point_id)," +
                 "INDEX idx_project (project_id)" +
                 ") COMMENT '点位结算单表'");
@@ -581,6 +585,9 @@ public class DbInitRunner implements CommandLineRunner {
                 "id BIGINT PRIMARY KEY," +
                 "contract_id BIGINT NOT NULL COMMENT '合同ID'," +
                 "change_type VARCHAR(30) NOT NULL COMMENT 'AMOUNT_CHANGE/SCOPE_CHANGE/TERM_CHANGE/OTHER'," +
+                "change_field VARCHAR(30) COMMENT '变更字段:AMOUNT/START_DATE/END_DATE'," +
+                "new_amount DECIMAL(14,2) COMMENT '变更后金额'," +
+                "new_date DATE COMMENT '变更后日期'," +
                 "change_desc VARCHAR(1000) COMMENT '变更说明'," +
                 "supplement_file_id BIGINT COMMENT '补充附件ID'," +
                 "approver_id BIGINT COMMENT '审核人ID'," +
@@ -588,6 +595,7 @@ public class DbInitRunner implements CommandLineRunner {
                 "status VARCHAR(20) NOT NULL DEFAULT 'NONE' COMMENT 'NONE/PENDING/APPROVED/REJECTED'," +
                 "remark VARCHAR(500) COMMENT '备注'," +
                 "create_by BIGINT," +
+                "update_by BIGINT," +
                 "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
                 "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
                 "deleted TINYINT DEFAULT 0," +

@@ -9,6 +9,7 @@ CREATE TABLE sys_dept (
     leader VARCHAR(50) COMMENT '负责人',
     status TINYINT DEFAULT 1 COMMENT '状态(1正常 0禁用)',
     create_by BIGINT,
+    update_by BIGINT,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted TINYINT DEFAULT 0
@@ -39,6 +40,7 @@ CREATE TABLE sys_role (
     sort INT DEFAULT 0,
     status TINYINT DEFAULT 1,
     create_by BIGINT,
+    update_by BIGINT,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted TINYINT DEFAULT 0
@@ -55,6 +57,7 @@ CREATE TABLE sys_menu (
     sort INT DEFAULT 0,
     status TINYINT DEFAULT 1,
     create_by BIGINT,
+    update_by BIGINT,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted TINYINT DEFAULT 0,
