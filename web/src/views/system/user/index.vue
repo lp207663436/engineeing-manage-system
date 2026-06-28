@@ -176,9 +176,9 @@ onMounted(() => {
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="primary" size="small" @click="handleAssignRoles(row)">分配角色</el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button link type="primary" size="small" @click="handleEdit(row as SysUser)">编辑</el-button>
+            <el-button link type="primary" size="small" @click="handleAssignRoles(row as SysUser)">分配角色</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(row as SysUser)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

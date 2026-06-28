@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { attachmentApi, type AttachmentDTO } from '@/api/business'
-import type { UploadRawFile } from 'element-plus'
+import type { UploadRawFile, UploadFile } from 'element-plus'
 import FilePreview from '@/components/FilePreview.vue'
 
 interface Row extends AttachmentDTO {}
@@ -60,11 +60,11 @@ function formatSize(v?: number) {
   return `${(kb / 1024).toFixed(2)} MB`
 }
 
-function handleFileChange(file: { raw: File }) {
-  fileList.value.push(file.raw)
+function handleFileChange(file: UploadFile) {
+  if (file.raw) fileList.value.push(file.raw)
 }
 
-function handleFileRemove(file: { raw: File }) {
+function handleFileRemove(file: UploadFile) {
   fileList.value = fileList.value.filter((f) => f !== file.raw)
 }
 

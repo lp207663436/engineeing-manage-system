@@ -30,7 +30,7 @@ const isEdit = ref(false)
 const statusMap: Record<string, string> = {
   DRAFT: '草稿', SUBMITTED: '已提交', APPROVED: '已审批', CONFIRMED: '已确认', VOID: '已作废',
 }
-const statusTagType: Record<string, string> = {
+const statusTagType: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
   DRAFT: 'info', SUBMITTED: 'warning', APPROVED: 'success', CONFIRMED: 'success', VOID: 'danger',
 }
 const businessTypeMap: Record<string, string> = { NEW_BUILD: '新建工程', MAINTENANCE_POINT: '维护点位' }
@@ -238,7 +238,7 @@ onMounted(() => {
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
         <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button link type="primary" size="small" @click="handleEdit(row as Quote)">编辑</el-button>
             <el-button
               v-if="row.status !== 'APPROVED'"
               link
@@ -247,7 +247,7 @@ onMounted(() => {
               @click="handleStartApproval(row as Quote)"
             >发起审批</el-button>
             <el-button link type="info" size="small" @click="handleViewProgress(row as Quote)">审批进度</el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(row as Quote)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

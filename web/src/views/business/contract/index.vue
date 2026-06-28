@@ -44,7 +44,7 @@ const categoryMap: Record<string, string> = {
 const statusMap: Record<string, string> = {
   DRAFT: '草稿', APPROVING: '审批中', APPROVED: '已审批', ARCHIVED: '已归档',
 }
-const statusTagType: Record<string, string> = {
+const statusTagType: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
   DRAFT: 'info', APPROVING: 'warning', APPROVED: 'success', ARCHIVED: 'info',
 }
 
@@ -271,7 +271,7 @@ onMounted(() => {
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
         <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button link type="primary" size="small" @click="handleEdit(row as Contract)">编辑</el-button>
             <el-button
               v-if="row.status !== 'APPROVED'"
               link
@@ -280,7 +280,7 @@ onMounted(() => {
               @click="handleStartApproval(row as Contract)"
             >发起审批</el-button>
             <el-button link type="info" size="small" @click="handleViewProgress(row as Contract)">审批进度</el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(row as Contract)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

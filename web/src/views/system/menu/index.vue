@@ -17,7 +17,7 @@ const menuOptions = ref<any[]>([])
 // el-tree-select 节点字段映射(TreeOptionProps 类型未声明 value,用变量引用规避多余属性检查)
 const menuTreeProps = { label: 'name', value: 'id', children: 'children' }
 
-const typeMap: Record<number, { label: string; type: string }> = {
+const typeMap: Record<number, { label: string; type: 'primary' | 'success' | 'warning' | 'info' | 'danger' }> = {
   1: { label: '目录', type: 'info' },
   2: { label: '菜单', type: 'success' },
   3: { label: '按钮', type: 'warning' },

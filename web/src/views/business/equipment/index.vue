@@ -32,7 +32,7 @@ const isEdit = ref(false)
 const statusMap: Record<string, string> = {
   NORMAL: '正常', FAULT: '故障', REPAIRING: '维修中', SCRAPPED: '报废',
 }
-const statusTagType: Record<string, string> = {
+const statusTagType: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
   NORMAL: 'success', FAULT: 'danger', REPAIRING: 'warning', SCRAPPED: 'info',
 }
 const categoryOptions = ['门禁', '监控', '网络', '楼控', '消防', '广播', '其他']
@@ -187,8 +187,8 @@ onMounted(() => {
         <el-table-column prop="warrantyExpiry" label="保修到期" min-width="120" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button link type="primary" size="small" @click="handleEdit(row as Equipment)">编辑</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(row as Equipment)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
